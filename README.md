@@ -14,12 +14,6 @@
 - **高度定制**：丰富的自定义选项，满足不同场景需求。
 - **完全免费**：开源免费，非商业化项目。
 
-<kbd><img src="./misc/sample-git-1.gif" alt="sample-git-1.gif" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
-
-<kbd><img src="./misc/sample-git-4.gif" alt="sample-git-4.gif" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
-
-<kbd><img src="./misc/highlight_trans.png" alt="highlight_trans.png" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
-
 ## 📦 安装
 
 ### 从源码构建
