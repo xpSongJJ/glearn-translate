@@ -1,4 +1,17 @@
 <template>
+  <!-- 搜索翻译（始终置顶） -->
+  <el-row class="margin-bottom margin-left-2em">
+    <el-col :span="24">
+      <el-input
+        ref="searchInputRef"
+        v-model="searchText"
+        placeholder="输入文本，回车翻译"
+        @keyup.enter="handleSearch"
+        clearable
+      />
+    </el-col>
+  </el-row>
+
   <!-- 开关 -->
   <el-row class="margin-bottom margin-left-2em">
     <el-col :span="20" class="lightblue rounded-corner">
@@ -376,9 +389,13 @@
         <span class="popup-text popup-vertical-left">模型</span>
       </el-col>
       <el-col :span="12">
-        <el-select v-model="config.model[config.service]" placeholder="请选择模型">
-          <el-option class="select-left" v-for="item in compute.model" :key="item" :label="item" :value="item" />
-        </el-select>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <el-select v-model="config.model[config.service]" placeholder="请选择模型" :loading="loadingModels" style="flex: 1;">
+            <el-option class="select-left" v-for="item in compute.model" :key="item" :label="item" :value="item" />
+          </el-select>
+          <el-button v-show="compute.showModel" :icon="Refresh" circle size="small" @click="refreshModelList" :loading="loadingModels" title="拉取最新模型列表" />
+        </div>
+        <div v-if="modelFetchError" style="font-size: 11px; color: #E6A23C; margin-top: 2px;">{{ modelFetchError }}</div>
       </el-col>
     </el-row>
 
@@ -398,17 +415,19 @@
       </el-col>
     </el-row>
 
-    <!-- 高级选项-->
-    <el-collapse class="margin-left-2em margin-bottom">
-      <el-collapse-item title="高级选项">
+  </div>
 
+  <!-- 高级选项弹窗 -->
+  <teleport to="body">
+    <div v-if="showAdvanced" class="advanced-overlay" @click.self="showAdvanced = false">
+      <div class="advanced-panel">
         <!-- 主题设置 -->
-        <el-row class="margin-bottom margin-left-2em margin-top-2em">
+        <el-row class="margin-bottom">
           <el-col :span="12" class="lightblue rounded-corner">
             <span class="popup-text popup-vertical-left">主题设置</span>
           </el-col>
           <el-col :span="12">
-            <el-select v-model="config.theme" placeholder="请选择主题模式">
+            <el-select v-model="config.theme" placeholder="请选择主题模式" size="small">
               <el-option class="select-left" v-for="item in options.theme" :key="item.value" :label="item.label"
                          :value="item.value" />
             </el-select>
@@ -417,7 +436,7 @@
 
         <!-- 缓存开关 -->
         <el-row class="margin-bottom margin-left-2em">
-          <el-col :span="20" class="lightblue rounded-corner">
+          <el-col :span="18" class="lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark" content="开启缓存可以提高翻译速度，减少重复请求，但可能导致翻译结果不是最新的" placement="top-start" :show-after="500">
         <span class="popup-text popup-vertical-left">缓存翻译结果<el-icon class="icon-margin">
             <ChatDotRound />
@@ -425,14 +444,14 @@
             </el-tooltip>
           </el-col>
 
-          <el-col :span="4" class="flex-end">
-            <el-switch v-model="config.useCache" inline-prompt active-text="启用" inactive-text="禁用"/>
+          <el-col :span="6" class="flex-end">
+            <el-switch v-model="config.useCache" />
           </el-col>
         </el-row>
 
         <!-- 悬浮球开关 -->
-      <el-row v-if="config.on" class="margin-bottom margin-left-2em margin-top-1em">
-        <el-col :span="20" class="lightblue rounded-corner">
+      <el-row v-if="config.on" class="margin-bottom margin-left-2em">
+        <el-col :span="18" class="lightblue rounded-corner">
           <el-tooltip class="box-item" effect="dark" content="（测试版）控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
             <!-- <span class="new-feature-badge">新</span> -->
@@ -444,15 +463,15 @@
           </el-tooltip>
         </el-col>
 
-        <el-col :span="4" class="flex-end">
-          <el-switch v-model="floatingBallEnabled" inline-prompt active-text="启用" inactive-text="禁用" />
+        <el-col :span="6" class="flex-end">
+          <el-switch v-model="floatingBallEnabled" />
         </el-col>
       </el-row>
 
 
         <!-- 翻译进度面板 -->
         <el-row class="margin-bottom margin-left-2em">
-          <el-col :span="20" class="lightblue rounded-corner">
+          <el-col :span="18" class="lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark"
                         content="翻译进度面板（默认关）：关闭后将不再显示右下角的全文翻译进度面板，适合移动端或希望更少打扰的用户。"
                         placement="top-start" :show-after="500">
@@ -461,14 +480,14 @@
             </el-icon></span>
             </el-tooltip>
           </el-col>
-          <el-col :span="4" class="flex-end">
-          <el-switch v-model="config.translationStatus" inline-prompt active-text="启动" inactive-text="禁用" />
+          <el-col :span="6" class="flex-end">
+          <el-switch v-model="config.translationStatus" />
           </el-col>
         </el-row>
 
         <!-- 禁用动画设置 -->
         <el-row class="margin-bottom margin-left-2em">
-          <el-col :span="20" class="lightblue rounded-corner">
+          <el-col :span="18" class="lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark"
                         content="动画效果（默认开）：禁用后将关闭加载/悬浮等动画，以节省GPU资源和电量。适合低配置设备或希望节省资源的用户。"
                         placement="top-start" :show-after="500">
@@ -477,8 +496,8 @@
                 </el-icon></span>
             </el-tooltip>
           </el-col>
-          <el-col :span="4" class="flex-end">
-            <el-switch v-model="config.animations" inline-prompt active-text="启动" inactive-text="禁用" />
+          <el-col :span="6" class="flex-end">
+            <el-switch v-model="config.animations" />
           </el-col>
         </el-row>
 
@@ -494,7 +513,7 @@
             </el-tooltip>
           </el-col>
           <el-col :span="12">
-            <el-select v-model="config.inputBoxTranslationTrigger" placeholder="请选择触发方式">
+            <el-select v-model="config.inputBoxTranslationTrigger" placeholder="请选择触发方式" size="small">
               <el-option class="select-left" v-for="item in options.inputBoxTranslationTrigger" :key="item.value" 
                          :label="item.label" :value="item.value" />
             </el-select>
@@ -507,7 +526,7 @@
             <span class="popup-text popup-vertical-left">翻译目标语言</span>
           </el-col>
           <el-col :span="12">
-            <el-select v-model="config.inputBoxTranslationTarget" placeholder="请选择目标语言">
+            <el-select v-model="config.inputBoxTranslationTarget" placeholder="请选择目标语言" size="small">
               <el-option class="select-left" v-for="item in options.inputBoxTranslationTarget" :key="item.value" 
                          :label="item.label" :value="item.value" />
             </el-select>
@@ -526,7 +545,7 @@
           </el-col>
           <el-col :span="12">
             <el-input-number
-                v-model="config.maxConcurrentTranslations"
+                v-model="config.maxConcurrentTranslations" size="small"
                 :min="1"
                 :max="100"
                 :step="1"
@@ -539,7 +558,7 @@
 
         <!-- 使用代理转发 -->
         <el-row v-show="compute.showProxy" class="margin-bottom margin-left-2em">
-          <el-col :span="8" class="lightblue rounded-corner">
+          <el-col :span="12" class="lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark" content="使用代理可以解决网络无法访问的问题，如不熟悉代理设置请留空！" placement="top-start"
                         :show-after="500">
               <span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin">
@@ -547,45 +566,41 @@
                 </el-icon></span>
             </el-tooltip>
           </el-col>
-          <el-col :span="16">
-            <el-input v-model="config.proxy[config.service]" placeholder="默认不使用代理" />
+          <el-col :span="12">
+            <el-input v-model="config.proxy[config.service]" placeholder="默认不使用代理" size="small" />
           </el-col>
         </el-row>
 
         <!-- 角色和模板 -->
         <el-row v-show="compute.showAI" class="margin-bottom margin-left-2em">
-          <el-col :span="8" class="lightblue rounded-corner">
+          <el-col :span="24">
             <el-tooltip class="box-item" effect="dark" content="以系统身份 system 发送的对话，常用于指定 AI 要扮演的角色"
               placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">system<el-icon class="icon-margin">
+              <span class="popup-text" style="display: block; text-align: left;">system<el-icon class="icon-margin">
                   <ChatDotRound />
                 </el-icon></span>
             </el-tooltip>
-          </el-col>
-          <el-col :span="16">
-            <el-input type="textarea" v-model="config.system_role[config.service]" maxlength="8192"
-              placeholder="system message " />
+            <el-input type="textarea" v-model="config.system_role[config.service]" maxlength="8192" size="small"
+              :autosize="{ minRows: 4, maxRows: 12 }" placeholder="system message" />
           </el-col>
         </el-row>
         <el-row v-show="compute.showAI" class="margin-bottom margin-left-2em">
-          <el-col :span="8" class="lightblue rounded-corner">
+          <el-col :span="24">
             <el-tooltip class="box-item" effect="dark"
               content="以用户身份 user 发送的对话，其中{{to}}表示目标语言，{{origin}}表示待翻译的文本内容，两者不可缺少。"
               placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">user<el-icon class="icon-margin">
+              <span class="popup-text" style="display: block; text-align: left;">user<el-icon class="icon-margin">
                   <ChatDotRound />
                 </el-icon></span>
             </el-tooltip>
-          </el-col>
-          <el-col :span="16">
-            <el-input type="textarea" v-model="config.user_role[config.service]" maxlength="8192"
-              placeholder="user message template" />
+            <el-input type="textarea" v-model="config.user_role[config.service]" maxlength="8192" size="small"
+              :autosize="{ minRows: 4, maxRows: 12 }" placeholder="user message template" />
           </el-col>
         </el-row>
         <!-- 恢夏默认模板按钮 -->
         <el-row v-show="compute.showAI" class="margin-bottom margin-left-2em">
           <el-col :span="24" style="text-align: right;">
-            <el-button type="primary" link @click="resetTemplate">
+            <el-button type="primary" link @click="resetTemplate" size="small">
               <el-icon>
                 <Refresh />
               </el-icon>
@@ -602,7 +617,7 @@
         </el-row>
         <el-row class="margin-bottom margin-left-2em">
           <el-col :span="12">
-            <el-button type="primary" @click="handleExport">
+            <el-button type="primary" @click="handleExport" size="small">
               <el-icon>
                 <Download />
               </el-icon>
@@ -610,7 +625,7 @@
             </el-button>
           </el-col>
           <el-col :span="12">
-            <el-button type="success" @click="handleImport">
+            <el-button type="success" @click="handleImport" size="small">
               <el-icon>
                 <Upload />
               </el-icon>
@@ -631,14 +646,14 @@
           <el-col :span="24">
             <el-input v-model="importData" type="textarea" :rows="8" placeholder="请在此处粘贴您的JSON配置" />
             <div style="margin-top: 10px; text-align: right;">
-              <el-button @click="saveImport">保存</el-button>
+              <el-button @click="saveImport" size="small">保存</el-button>
             </div>
           </el-col>
         </el-row>
-      </el-collapse-item>
-    </el-collapse>
-    <!--    -->
-  </div>
+      </div>
+    </div>
+  </teleport>
+  <!--    -->
 
   <!-- 自定义快捷键对话框 -->
   <CustomHotkeyInput
@@ -656,16 +671,70 @@
     @cancel="handleCustomMouseHotkeyCancel"
   />
 
+  <!-- 搜索翻译结果悬浮框 -->
+  <teleport to="body">
+    <div v-if="showSearchResult" class="search-translation-overlay" @click.self="closeSearchResult">
+      <div class="search-translation-popup" :class="{ 'fr-dark-theme': isDarkTheme }">
+        <div class="fr-tooltip-header">
+          <span>翻译结果<small>（{{ currentServiceLabel }}）</small></span>
+          <div class="fr-tooltip-actions">
+            <button class="fr-action-btn" @click="copySearchResult" title="复制译文">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+            <button class="fr-close-btn" @click="closeSearchResult">×</button>
+          </div>
+        </div>
+        <div class="fr-tooltip-content">
+          <div class="fr-original-text fr-no-select">
+            <pre>{{ searchText }}</pre>
+          </div>
+          <div v-if="searchLoading && !searchResult" :class="['fr-loading-spinner', { 'fr-static': !config.animations }]"></div>
+          <div v-else-if="searchError" class="fr-error-message">{{ searchError }}</div>
+          <div v-else class="fr-translation-result fr-no-select">
+            <pre>{{ searchResult }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </teleport>
 
+  <!-- 底部操作栏 -->
+  <el-row class="action-bar-row">
+    <el-col :span="12" style="text-align:left">
+      <el-link
+        class="action-link"
+        :class="{ 'failed': actionText === '清除失败', 'success': actionText === '清除成功' }"
+        @click="clearCache"
+        :disabled="actionDisabled"
+      >
+        <el-icon v-if="actionLoading">
+          <Loading class="el-icon-loading" />
+        </el-icon>
+        {{ actionText }}
+      </el-link>
+    </el-col>
+    <el-col :span="12" style="text-align:right">
+      <el-link class="action-link" href="https://github.com/xpSongJJ/glearn-translate" target="_blank">
+        <el-icon>
+          <Star />
+        </el-icon>
+        GitHub开源
+      </el-link>
+    </el-col>
+  </el-row>
 
 </template>
 
 <script lang="ts" setup>
 
 // Main 处理配置信息
-import { computed, ref, watch, onUnmounted } from 'vue'
-import { models, options, servicesType, defaultOption } from "../entrypoints/utils/option";
+import { computed, ref, watch, onMounted, onUnmounted, useTemplateRef, inject } from 'vue'
+import { options, servicesType, defaultOption, customModelString } from "../entrypoints/utils/option";
 import { Config } from "@/entrypoints/utils/model";
+import { fetchModels } from "@/entrypoints/utils/modelFetcher";
 import { storage } from '@wxt-dev/storage';
 import { ChatDotRound, Refresh, Edit, Upload, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElInputNumber } from 'element-plus'
@@ -673,6 +742,8 @@ import browser from 'webextension-polyfill';
 import { defineAsyncComponent } from 'vue';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/components/CustomHotkeyInput.vue'));
 import { parseHotkey } from '@/entrypoints/utils/hotkey';
+import { translateTextStream } from '@/entrypoints/utils/translateApi';
+import type { Ref } from 'vue';
 
 // 初始化深色模式媒体查询
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -694,14 +765,80 @@ function updateTheme(theme: string) {
 // 配置信息
 let config = ref(new Config());
 
+// 远程模型列表（按服务缓存）
+const remoteModels = ref<Record<string, string[]>>({});
+// 是否正在拉取模型列表
+const loadingModels = ref(false);
+// 模型拉取错误信息
+const modelFetchError = ref('');
+
+// 拉取模型列表
+async function refreshModelList() {
+    const service = config.value.service;
+    // 机器翻译或 Coze 无需拉取
+    if (servicesType.isMachine(service) || servicesType.isCoze(service) || servicesType.isTencent(service)) {
+        return;
+    }
+
+    loadingModels.value = true;
+    modelFetchError.value = '';
+
+    const result = await fetchModels(service, {
+        token: config.value.token[service] || '',
+        proxy: config.value.proxy[service] || '',
+        ak: config.value.ak || '',
+        sk: config.value.sk || '',
+    });
+
+    if (result && result.length > 0) {
+        remoteModels.value[service] = result;
+        // 持久化到 storage
+        config.value.cachedModels[service] = JSON.stringify(result);
+        storage.setItem('local:config', JSON.stringify(config.value));
+    } else {
+        modelFetchError.value = '拉取失败，请检查网络或Token后重试';
+        // 如有缓存用缓存
+        if (config.value.cachedModels[service]) {
+            try {
+                const cached = JSON.parse(config.value.cachedModels[service]);
+                if (Array.isArray(cached) && cached.length > 0) {
+                    remoteModels.value[service] = cached;
+                }
+            } catch { /* ignore parse error */ }
+        }
+    }
+    loadingModels.value = false;
+}
+
+// 初始化时恢复已缓存的模型列表
+function restoreCachedModels() {
+    const cached = config.value.cachedModels;
+    if (cached && typeof cached === 'object') {
+        for (const [service, json] of Object.entries(cached)) {
+            try {
+                const list = JSON.parse(json as string);
+                if (Array.isArray(list) && list.length > 0) {
+                    remoteModels.value[service] = list;
+                }
+            } catch { /* ignore */ }
+        }
+    }
+}
+
 // 从 storage 中获取本地配置
 storage.getItem('local:config').then((value: any) => {
   if (typeof value === 'string' && value) {
     const parsedConfig = JSON.parse(value);
     Object.assign(config.value, parsedConfig);
   }
+  restoreCachedModels();
   // 初始应用主题
   updateTheme(config.value.theme || 'auto');
+  // 如果当前服务有 token 但无缓存模型，自动拉取
+  const service = config.value.service;
+  if (config.value.token?.[service] && !remoteModels.value[service]) {
+    refreshModelList();
+  }
 });
 
 // 监听 storage 中 'local:config' 的变化
@@ -724,6 +861,8 @@ watch(config, (newValue: any, oldValue: any) => {
   storage.setItem('local:config', JSON.stringify(newValue));
 }, { deep: true });
 
+// 服务/token 变化不再自动拉取模型列表，由用户点击刷新按钮手动触发
+
 // 计算属性
 let compute = ref({
   // 1、是否是AI服务
@@ -742,14 +881,28 @@ let compute = ref({
   showYoudao: computed(() => servicesType.isYoudao(config.value.service)),
   // 6.6、是否显示腾讯云机器翻译配置
   showTencent: computed(() => servicesType.isTencent(config.value.service)),
-  // 7、获取模型列表
-  model: computed(() => models.get(config.value.service) || []),
+  // 7、获取模型列表（远程拉取优先 → 缓存 → 自定义入口）
+  model: computed(() => {
+    const service = config.value.service;
+    const remote = remoteModels.value[service];
+    if (remote && remote.length > 0) return remote;
+    // 尝试从缓存解析
+    const cached = config.value.cachedModels?.[service];
+    if (cached) {
+      try {
+        const list = JSON.parse(cached);
+        if (Array.isArray(list) && list.length > 0) return list;
+      } catch { /* ignore */ }
+    }
+    // 无远程也无缓存时，提供自定义模型入口
+    return [customModelString];
+  }),
   // 8、是否需要自定义接口
   showCustom: computed(() => servicesType.isCustom(config.value.service)),
   // 9、是否显示 DeepLX URL 配置
   showDeepLX: computed(() => config.value.service === 'deeplx'),
   // 10、是否自定义模型
-  showCustomModel: computed(() => servicesType.isAI(config.value.service) && config.value.model[config.value.service] === "自定义模型"),
+  showCustomModel: computed(() => servicesType.isAI(config.value.service) && config.value.model[config.value.service] === customModelString),
   // 11、判断是否为"双语模式"，控制一些翻译服务的显示
   filteredServices: computed(() => options.services.filter((service: any) =>
     !([service.google].includes(service.value) && config.value.display !== 1))
@@ -1065,6 +1218,66 @@ const exportData = ref('');
 const showImportBox = ref(false);
 const importData = ref('');
 
+// 搜索翻译相关状态
+const searchText = ref('');
+const searchResult = ref('');
+const searchLoading = ref(false);
+const searchError = ref('');
+const showSearchResult = ref(false);
+const searchInputRef = useTemplateRef('searchInputRef');
+const showAdvanced = inject<Ref<boolean>>('showAdvanced')!;
+
+// 清除缓存操作
+const actionDisabled = ref(false);
+const actionText = ref('清除翻译缓存');
+const actionLoading = ref(false);
+
+async function clearCache() {
+  try {
+    actionDisabled.value = true;
+    actionText.value = "正在清除...";
+    actionLoading.value = true;
+
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (!tabs[0]?.id) {
+      throw new Error('No active tab found');
+    }
+
+    await browser.tabs.sendMessage(tabs[0].id, { message: 'clearCache' });
+
+    actionText.value = "清除成功";
+
+    setTimeout(() => {
+      actionDisabled.value = false;
+      actionText.value = '清除翻译缓存';
+      actionLoading.value = false;
+    }, 1500);
+
+  } catch (error) {
+    console.error('清除缓存失败:', error);
+    actionText.value = "清除失败";
+
+    setTimeout(() => {
+      actionDisabled.value = false;
+      actionText.value = '清除翻译缓存';
+      actionLoading.value = false;
+    }, 1500);
+  }
+}
+
+// 当前翻译服务名称
+const currentServiceLabel = computed(() => {
+  const svc = options.services.find((s: any) => s.value === config.value.service);
+  return svc?.label || config.value.service || '未知服务';
+});
+
+// 面板打开时自动聚焦搜索框
+onMounted(() => {
+  setTimeout(() => {
+    searchInputRef.value?.focus();
+  }, 100);
+});
+
 // Azure OpenAI 端点地址验证函数
 const isValidAzureEndpoint = (endpoint: string) => {
   if (!endpoint || endpoint.trim() === '') {
@@ -1319,6 +1532,54 @@ const validateConfig = (configData: any): boolean => {
     return true;
   } catch (error) {
     return false;
+  }
+};
+// 搜索翻译处理
+const handleSearch = async () => {
+  const text = searchText.value.trim();
+  if (!text) return;
+
+  searchLoading.value = true;
+  searchError.value = '';
+  searchResult.value = '';
+  showSearchResult.value = true;
+
+  try {
+    const result = await translateTextStream(
+      text,
+      '搜索翻译',
+      (chunk: string) => {
+        searchResult.value += chunk;
+      }
+    );
+    searchResult.value = result;
+  } catch (e: any) {
+    searchError.value = e?.message || '翻译失败，请检查网络或翻译服务配置';
+  } finally {
+    searchLoading.value = false;
+  }
+};
+
+const closeSearchResult = () => {
+  showSearchResult.value = false;
+  searchResult.value = '';
+  searchError.value = '';
+};
+
+const copySearchResult = async () => {
+  try {
+    await navigator.clipboard.writeText(searchResult.value);
+    ElMessage({
+      message: '复制译文成功',
+      type: 'success',
+      duration: 2000
+    });
+  } catch {
+    ElMessage({
+      message: '复制失败',
+      type: 'error',
+      duration: 2000
+    });
   }
 };
 
@@ -1598,5 +1859,305 @@ const validateConfig = (configData: any): boolean => {
   font-size: 12px;
   margin-top: 4px;
   line-height: 1.4;
+}
+
+/* 搜索翻译悬浮框样式 */
+.search-translation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 20000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 60px;
+}
+
+.search-translation-popup {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  width: 420px;
+  max-width: 90vw;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: searchPopupIn 0.25s ease-out;
+}
+
+.search-translation-popup.fr-dark-theme {
+  background: #2b2b2b;
+  color: #e0e0e0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes searchPopupIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.search-translation-popup .fr-tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.search-translation-popup.fr-dark-theme .fr-tooltip-header {
+  border-bottom-color: #444;
+}
+
+.search-translation-popup .fr-tooltip-header small {
+  font-weight: normal;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+
+.search-translation-popup .fr-tooltip-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-translation-popup .fr-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #666;
+  transition: background 0.2s;
+}
+
+.search-translation-popup .fr-action-btn:hover {
+  background: #f0f0f0;
+}
+
+.search-translation-popup.fr-dark-theme .fr-action-btn {
+  color: #aaa;
+}
+
+.search-translation-popup.fr-dark-theme .fr-action-btn:hover {
+  background: #3a3a3a;
+}
+
+.search-translation-popup .fr-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  color: #999;
+  transition: background 0.2s;
+}
+
+.search-translation-popup .fr-close-btn:hover {
+  background: #fee;
+  color: #e33;
+}
+
+.search-translation-popup.fr-dark-theme .fr-close-btn:hover {
+  background: #422;
+}
+
+.search-translation-popup .fr-tooltip-content {
+  padding: 12px 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.search-translation-popup .fr-original-text {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  border-left: 3px solid #409eff;
+}
+
+.search-translation-popup.fr-dark-theme .fr-original-text {
+  background: #1e1e1e;
+  border-left-color: #409eff;
+}
+
+.search-translation-popup .fr-original-text pre,
+.search-translation-popup .fr-translation-result pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: inherit;
+}
+
+.search-translation-popup .fr-no-select {
+  user-select: text;
+}
+
+.search-translation-popup .fr-translation-result {
+  padding: 4px 0;
+}
+
+.search-translation-popup .fr-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #409eff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 16px auto;
+}
+
+.search-translation-popup .fr-loading-spinner.fr-static {
+  animation: none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.search-translation-popup .fr-error-message {
+  color: #f56c6c;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+/* 底部操作栏 */
+.action-bar-row {
+  margin: 0;
+  padding: 8px 0;
+}
+
+.action-link {
+  font-size: 0.75em;
+  transition: all 0.6s ease;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fr-text-color-secondary);
+}
+
+.action-link:hover {
+  opacity: 0.8;
+  color: var(--el-color-primary);
+}
+
+.action-link.failed {
+  color: var(--el-color-danger) !important;
+}
+
+.action-link.success {
+  color: var(--el-color-success) !important;
+}
+
+:deep(.el-icon-loading) {
+  animation: rotating 1s linear infinite;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>
+
+<style>
+/* 高级选项弹窗 */
+.advanced-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+}
+.advanced-panel {
+  width: 50%;
+  max-height: 100vh;
+  overflow-y: auto;
+  background: var(--el-bg-color);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  padding: 8px 12px;
+}
+/* 标签文字 12px */
+.advanced-panel .popup-text {
+  font-size: 12px !important;
+}
+/* 控件及所有非标签文字 10px */
+.advanced-panel .el-select,
+.advanced-panel .el-select .el-select__wrapper,
+.advanced-panel .el-select .el-select__placeholder,
+.advanced-panel .el-select .el-select__selected-item,
+.advanced-panel .el-input__inner,
+.advanced-panel .el-checkbox__label,
+.advanced-panel .el-button,
+.advanced-panel .el-radio__label,
+.advanced-panel .el-textarea__inner,
+.advanced-panel .el-input-number,
+.advanced-panel .el-input__wrapper,
+.advanced-panel .el-switch {
+  font-size: 10px !important;
+}
+.advanced-panel .el-switch * {
+  font-size: 10px !important;
+}
+.advanced-panel .margin-bottom {
+  margin-bottom: 6px;
+}
+.advanced-panel .margin-left-2em {
+  margin-left: 4px;
+  margin-right: 4px;
+}
+/* 开关缩小 */
+.advanced-panel .el-switch {
+  --el-switch-height: 18px;
+  --el-switch-width: 36px;
+  margin: 0 !important;
+  vertical-align: middle;
+}
+.advanced-panel .el-switch .el-switch__core {
+  height: 18px !important;
+  min-width: 36px !important;
+}
+.advanced-panel .el-switch .el-switch__action {
+  width: 14px !important;
+  height: 14px !important;
+}
+.advanced-panel .el-divider__text {
+  font-size: 12px !important;
+  white-space: nowrap !important;
+}
+/* 弹窗内 select 下拉菜单（teleport 到 body） */
+.el-select-dropdown__item {
+  font-size: 10px !important;
 }
 </style>

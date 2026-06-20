@@ -20,7 +20,12 @@ export function commonMsgTemplate(origin: string) {
         'messages': [
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': user},
-        ]
+        ],
+        // 翻译场景不需要思考，通过 extra_body 透传给上游
+        'extra_body': {
+            'enable_thinking': false,              // 千问
+            'thinking': { 'type': 'disabled' },    // DeepSeek
+        },
     })
 }
 
@@ -41,13 +46,12 @@ export function deepseekMsgTemplate(origin: string) {
         'messages': [
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': user},
-        ]
+        ],
+        temperature: 0.7,
+        // 翻译场景不需要思考，显式禁用
+        thinking: { type: 'disabled' },                        // 直连 DeepSeek API
+        'extra_body': { thinking: { type: 'disabled' } },      // 经代理透传
     };
-
-    // 如果不是 deepseek-reasoner 模型,则添加 temperature
-    if (model !== 'deepseek-reasoner') {
-        payload.temperature = 0.7;
-    }
 
     return JSON.stringify(payload);
 }
@@ -87,7 +91,7 @@ export function claudeMsgTemplate(origin: string) {
 }
 
 // 通义千问
-export function tongyiMsgTemplate(origin: string) {
+export function qwenMsgTemplate(origin: string) {
     let model = config.model[config.service] === customModelString ? config.customModel[config.service] : config.model[config.service]
     const normalTemplate = () => {
         let system = config.system_role[config.service] || defaultOption.system_role;
@@ -96,7 +100,8 @@ export function tongyiMsgTemplate(origin: string) {
 
         return JSON.stringify({
             "model": model,
-            "enable_thinking": false,
+            "enable_thinking": false,                        // 直连 DashScope
+            "extra_body": { "enable_thinking": false },      // 经代理透传
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
@@ -169,8 +174,29 @@ export function cozeTemplate(origin: string) {
 
     return JSON.stringify({
         bot_id: config.robot_id[config.service],
-        user: "FluentRead",
+        user: "Glearn",
         query: system + user,
         stream: false
+    });
+}
+
+// 智谱清言
+export function zhipuMsgTemplate(origin: string) {
+    let model = config.model[config.service] === customModelString ? config.customModel[config.service] : config.model[config.service];
+    model = model.replace(/（.*）/g, "");
+
+    let system = config.system_role[config.service] || defaultOption.system_role;
+    let user = (config.user_role[config.service] || defaultOption.user_role)
+        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+
+    return JSON.stringify({
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system},
+            {'role': 'user', 'content': user},
+        ],
+        temperature: 0.7,
+        thinking: { type: 'disabled' },                        // 直连智谱 API
+        'extra_body': { thinking: { type: 'disabled' } },      // 经代理透传
     });
 }

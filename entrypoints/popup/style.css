@@ -12,6 +12,19 @@
     -webkit-text-size-adjust: 100%;
 }
 
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+#app {
+    min-width: 340px;
+    height: 100%;
+    padding: 0;
+    text-align: center;
+}
+
 /* 标题样式 */
 .title {
     font-size: 1.5em;
@@ -47,13 +60,6 @@
 
 .custom-padding {
     padding: 10px !important;
-}
-
-#app {
-    min-width: 340px;
-    margin: 0 auto;
-    padding: 0;
-    text-align: center;
 }
 
 /* 由 .dark 类与变量控制主题，这里不再强制全局颜色 */

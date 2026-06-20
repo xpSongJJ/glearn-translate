@@ -2,12 +2,12 @@
 layout: home
 
 hero:
-  name: 流畅阅读
+  name: 拾译
   text: 浏览器双语翻译插件
   tagline: 让所有人都能够拥有基于母语般的阅读体验
   image:
     src: /logo.png
-    alt: FluentRead
+    alt: Glearn
     style: "width: 240px; height: auto;"
   actions:
     - theme: brand

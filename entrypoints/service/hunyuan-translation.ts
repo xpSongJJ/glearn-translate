@@ -113,7 +113,7 @@ async function hunyuanTranslation(message: any) {
         }
         
         // 转换语言代码
-        // 对于自动检测，使用FluentRead内置的语言检测
+        // 对于自动检测，使用Glearn内置的语言检测
         let sourceLang: string;
         if (config.from === 'auto') {
             const detectedLang = detectlang(message.origin.replace(/[\s\u3000]/g, ''));

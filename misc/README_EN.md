@@ -1,12 +1,8 @@
-# FluentRead(Open Immersive Translate)
+# Glearn Translate (拾译)
 
-> [中文](https://github.com/Bistutu/FluentRead/blob/main/README.md) | English
+> [中文](../README.md) | English
 
-A revolutionary open-source browser translation plugin that provides everyone with a native-like reading experience.
-
-1. [Official Documentation (Must Read)](https://fluent.thinkstu.com/)
-2. [Bilibili Video Introduction](https://www.bilibili.com/video/BV1ux4y1e73x/)
-3. [Deepwiki Architecture Introduction](https://deepwiki.com/Bistutu/FluentRead)
+A browser translation plugin forked from [FluentRead](https://github.com/Bistutu/FluentRead), providing everyone with a native-like reading experience.
 
 ## 🌟 Features
 
@@ -22,22 +18,41 @@ A revolutionary open-source browser translation plugin that provides everyone wi
 
 <kbd><img src="../misc/sample-git-4.gif" alt="sample-git-4.gif" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
 
+<kbd><img src="../misc/highlight_trans.png" alt="highlight_trans.png" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
+
 ## 📦 Installation
 
-| Browser | Installation Method |
-|---------|-------------------|
-| Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/djnlaiohfaaifbibleebjggkghlmcpcj?hl=zh-CN&authuser=0) \| [Domestic Mirror](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj) |
-| Edge | [Edge Add-ons Store](https://microsoftedge.microsoft.com/addons/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/kakgmllfpjldjhcnkghpplmlbnmcoflp?hl=zh-CN) |
-| Firefox | [Firefox Add-ons Store](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
+### Build from Source
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build for Chrome
+pnpm build
+
+# Build for Firefox
+pnpm build:firefox
+```
+
+The build output is in the `.output/` directory. Load the unpacked extension in your browser's extension management page.
 
 ## 📖 Documentation
 
-Please visit [FluentRead Official Documentation](https://fluent.thinkstu.com/) for detailed:
-- Feature Introduction
-- Configuration Guide
-- User Tutorial
-- FAQ
+Project documentation is in the [docs/](../docs/) directory, built with VitePress:
 
-# Star History
+```bash
+pnpm docs:dev     # Preview docs locally
+pnpm docs:build   # Build docs
+```
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Bistutu/FluentRead&type=Date)](https://star-history.com/#Bistutu/FluentRead&Date)
+## 🛠 Tech Stack
+
+- **Framework**: WXT + Vue 3 + TypeScript
+- **UI**: Element Plus
+- **Bundler**: Vite
+- **Docs**: VitePress
+
+## 📄 License
+
+[Apache-2.0](../LICENSE)

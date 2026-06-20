@@ -110,14 +110,14 @@ const listenToFloatingBallState = () => {
   };
   
   // 添加事件监听器
-  document.addEventListener('fluentread-translation-started', handleTranslationStarted);
-  document.addEventListener('fluentread-translation-ended', handleTranslationEnded);
+  document.addEventListener('glearn-translation-started', handleTranslationStarted);
+  document.addEventListener('glearn-translation-ended', handleTranslationEnded);
   
   // 返回清理函数
   return {
     cleanup: () => {
-      document.removeEventListener('fluentread-translation-started', handleTranslationStarted);
-      document.removeEventListener('fluentread-translation-ended', handleTranslationEnded);
+      document.removeEventListener('glearn-translation-started', handleTranslationStarted);
+      document.removeEventListener('glearn-translation-ended', handleTranslationEnded);
     }
   };
 };
@@ -220,7 +220,7 @@ onUnmounted(() => {
   transition: width 0.3s ease, background-color 0.3s ease;
 }
 
-/* 暗黑模式支持 - 使用 :root[class="dark"] 选择器匹配 FluentRead 的主题系统 */
+/* 暗黑模式支持 - 使用 :root[class="dark"] 选择器匹配 Glearn 的主题系统 */
 :root[class="dark"] .translation-status-card {
   background-color: #2d3436;
   border-color: #4d4d4d;

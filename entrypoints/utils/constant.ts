@@ -8,7 +8,7 @@ export const urls: any = {
     [services.azureOpenai]: "https://your-resource-name.openai.azure.com/openai/deployments/your-deployment-name/chat/completions?api-version=2024-02-15-preview",
     [services.moonshot]: "https://api.moonshot.cn/v1/chat/completions",
     [services.custom]: "https://localhost:11434/v1/chat/completions",
-    [services.tongyi]: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    [services.qwen]: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
     [services.zhipu]: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
     [services.xiaoniu]: "https://api.niutrans.com/NiuTransServer/translationXML",
     [services.youdao]: "https://openapi.youdao.com/api",
@@ -57,6 +57,6 @@ export const styles = {
 
 // 右键菜单ID常量
 export const CONTEXT_MENU_IDS = {
-    TRANSLATE_FULL_PAGE: 'fluent-read-translate-full-page',
-    RESTORE_ORIGINAL: 'fluent-read-restore-original',
+    TRANSLATE_FULL_PAGE: 'glearn-translate-full-page',
+    RESTORE_ORIGINAL: 'glearn-restore-original',
 }

@@ -12,7 +12,7 @@ export const services = {
     azureOpenai: "azureOpenai", // Azure OpenAI
     gemini: "gemini",
     yiyan: "yiyan",
-    tongyi: "tongyi",
+    qwen: "qwen",
     zhipu: "zhipu",
     moonshot: "moonshot",
     claude: "claude",
@@ -45,7 +45,7 @@ export const servicesType = {
         services.azureOpenai,
         services.gemini,
         services.yiyan,
-        services.tongyi,
+        services.qwen,
         services.zhipu,
         services.moonshot,
         services.claude, services.custom,
@@ -71,7 +71,7 @@ export const servicesType = {
         services.openai,
         services.azureOpenai,
         services.gemini,
-        services.tongyi,
+        services.qwen,
         services.zhipu,
         services.moonshot,
         services.claude,
@@ -101,7 +101,7 @@ export const servicesType = {
         services.azureOpenai,
         services.gemini,
         services.yiyan,
-        services.tongyi,
+        services.qwen,
         services.zhipu,
         services.moonshot,
         services.claude,
@@ -131,7 +131,7 @@ export const servicesType = {
         services.deepL,
         services.deeplx,
         services.moonshot,
-        services.tongyi,
+        services.qwen,
         services.xiaoniu,
         services.youdao,
         services.tencent,
@@ -173,36 +173,6 @@ export const servicesType = {
 };
 
 export const customModelString = "自定义模型";
-export const models = new Map<string, Array<string>>([
-    [services.openai, ["gpt-5-nano", "gpt-5-mini", "gpt5", "gpt-5-chat-latest", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o-mini", "gpt-4o", "o3", "o3-mini", customModelString]],
-    [services.azureOpenai, ["gpt-5-nano", "gpt-5-mini", "gpt5", "gpt-5-chat-latest", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o-mini", "gpt-4o", "o3", "o3-mini", customModelString]],
-    [services.gemini, ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro", customModelString]],
-    [services.yiyan, ["ERNIE-Bot 4.0", "ERNIE-Bot", "ERNIE-Speed-8K"]],
-    [services.tongyi, ["qwen-long", "qwen-turbo", "qwen-plus", "qwen3-8b", "qwen-mt-plus", "qwen-mt-turbo", customModelString]],
-    [services.zhipu, ["glm-4.5", "GLM-4-Flash", "glm-4-plus", "glm-4", "glm-4v", customModelString]],
-    [services.moonshot, ["kimi-k2-0711-preview", "kimi-k2-turbo-preview", "moonshot-v1-auto", "moonshot-v1-8k", "moonshot-v1-32k", customModelString]],
-    [services.claude, ["claude-sonnet-4-0", "claude-opus-4-1", "claude-3-5-haiku-latest"]],
-    [services.custom, ["gpt-5-nano", "gpt-5-mini", "gpt5", "gpt-4o", "gemma:7b", "llama2:7b", "mistral:7b", customModelString]],
-    [services.infini, ["llama-2-13b-chat", "llama-3.3-70b-instruct", "qwen2.5-14b-instruct", "gemma-2-27b-it", "glm-4-9b-chat", customModelString]],
-    [services.baichuan, ["Baichuan4-Air", "Baichuan4-Turbo", "Baichuan4", customModelString]],
-    [services.lingyi, ["yi-lightning", customModelString]],
-    [services.deepseek, ["deepseek-chat", "deepseek-reasoner", customModelString]],
-    [services.minimax, ["chatcompletion_v2"]],
-    [services.jieyue, ["step-1-8k", customModelString]],
-    [services.huanYuan, ["hunyuan-turbos-latest", "hunyuan-t1-latest", "hunyuan-a13b", "hunyuan-lite", "hunyuan-standard", customModelString]],
-    [services.huanYuanTranslation, ["hunyuan-translation", "hunyuan-translation-lite", customModelString]],
-    [services.newapi, ["gemini-2.5-flash-lite", "gemini-2.0-flash", "gpt-5-nano", "gpt-5-mini", "gpt5", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o-mini", customModelString]],
-    [services.grok, ["grok-4-0709","grok-3-mini", customModelString]],
-    [services.doubao, [customModelString]],
-
-    // mix model
-    [services.siliconCloud, ["Qwen/Qwen3-Coder-30B-A3B-Instruct", "Qwen/Qwen3-8B", "THUDM/GLM-Z1-9B-0414", "THUDM/GLM-4-9B-0414",
-        "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-        "Qwen/Qwen2.5-7B-Instruct", "internlm/internlm2_5-7b-chat", "THUDM/glm-4-9b-chat", customModelString]],
-
-    [services.groq, ["llama-3.1-8b-instant", "llama3-8b-8192", "llama-3.3-70b-versatile", "gemma2-9b-it", "mixtral-8x7b-32768", "whisper-large-v3", customModelString]],
-    [services.openrouter, ["meta-llama/llama-3.1-8b-instruct", "google/gemini-2.0-flash-exp", "qwen/qwen-2-7b-instruct", "huggingfaceh4/zephyr-7b-beta", customModelString]]
-]);
 
 export const options = {
     on: [
@@ -272,7 +242,7 @@ export const options = {
         {value: services.openai, label: "OpenAI"},
         {value: services.azureOpenai, label: "Azure OpenAI"},
         {value: services.huanYuanTranslation, label: "腾讯混元翻译"},
-        {value: services.tongyi, label: "阿里通义"},
+        {value: services.qwen, label: "千问"},
         {value: services.doubao, label: "字节豆包"},
         {value: services.grok, label: "Grok (X.AI)"},
         {value: services.openrouter, label: "OpenRouter"},
@@ -399,7 +369,7 @@ export const defaultOption = {
     custom: "http://localhost:11434/v1/chat/completions",
     deeplx: "http://localhost:1188/translate",
     system_role:
-        "You are a professional, authentic machine translation engine.",
+        "You are a professional translation engine. Produce output that reads as if originally written in the target language — restructure sentences where needed, use idiomatic expressions, and avoid translationese. Output only the translation result.",
     user_role: `Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
 
 {{origin}}`,

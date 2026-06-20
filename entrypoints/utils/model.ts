@@ -25,6 +25,7 @@ export class Config {
     key: string;
     model: IMapping;
     customModel: IMapping;  // 自定义模型名称
+    cachedModels: IMapping;  // 远程拉取的模型列表（JSON 字符串数组，按服务存储）
     proxy: IMapping;  // 代理地址
     custom: string; // 本地服务地址
     extra: IExtra;  // 额外信息（内包信息）
@@ -70,6 +71,7 @@ export class Config {
         this.key = '';
         this.model = {};
         this.customModel = {};
+        this.cachedModels = {};
         this.proxy = {};
         this.custom = defaultOption.custom;
         this.extra = {};

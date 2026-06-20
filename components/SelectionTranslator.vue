@@ -15,7 +15,7 @@
           @mouseenter="handleMouseEnterTooltip"
           @mouseleave="handleMouseLeaveTooltip">
         <div class="fr-tooltip-header">
-          <span>翻译结果<small>（via 流畅阅读）</small></span>
+          <span>翻译结果<small>（{{ serviceLabel }}）</small></span>
           <div class="fr-tooltip-actions">
             <button class="fr-action-btn" @click="copyTranslation" title="复制译文">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -27,54 +27,20 @@
           </div>
         </div>
         <div class="fr-tooltip-content">
-          <div v-if="isLoading" :class="['fr-loading-spinner', { 'fr-static': !config.animations }]"></div>
+          <!-- 原文尽早显示（双语模式），不受加载状态影响 -->
+          <div v-if="config.selectionTranslatorMode === 'bilingual'" class="fr-original-text fr-no-select">
+            <pre>{{ selectedText }}</pre>
+          </div>
+          <!-- 译文区域：加载 / 错误 / 结果 -->
+          <div v-if="isLoading && !translationResult" :class="['fr-loading-spinner', { 'fr-static': !config.animations }]"></div>
           <div v-else-if="error" class="fr-error-message">{{ error }}</div>
-          <div v-else class="fr-translation-container">
-            <!-- 原文显示（双语模式才显示） -->
-            <div v-if="config.selectionTranslatorMode === 'bilingual'" class="fr-original-text fr-no-select">
-              <pre>{{ selectedText }}</pre>
-              <button class="fr-text-audio-btn" @click="(e) => toggleAudio(selectedText, e)" title="播放/停止原文">
-                <svg v-if="isPlaying && currentPlayingText === selectedText" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="6" y="4" width="4" height="16"></rect>
-                  <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                </svg>
-              </button>
-            </div>
-            <!-- 译文显示（双语模式和只显示译文模式都显示） -->
-            <div v-if="config.selectionTranslatorMode === 'bilingual' || config.selectionTranslatorMode === 'translation-only'" class="fr-translation-result fr-no-select">
-              <pre>{{ translationResult }}</pre>
-              <button class="fr-text-audio-btn" @click="(e) => toggleAudio(translationResult, e)" title="播放/停止译文">
-                <svg v-if="isPlaying && currentPlayingText === translationResult" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="6" y="4" width="4" height="16"></rect>
-                  <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                </svg>
-              </button>
-            </div>
-            
-            <!-- 播放状态提示 - 显示在弹窗内部 -->
-            <div v-if="isPlaying" class="fr-playing-status">
-              <div class="fr-playing-status-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                  <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-                </svg>
-              </div>
-              <span>正在播放: {{ currentPlayingText === selectedText ? '原文' : '译文' }}</span>
-              <button class="fr-stop-audio-btn" @click="(e) => stopAudio(e)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="6" y="4" width="4" height="16"></rect>
-                  <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-              </button>
-            </div>
+          <div v-else-if="config.selectionTranslatorMode === 'bilingual' || config.selectionTranslatorMode === 'translation-only'" class="fr-translation-result fr-no-select">
+            <pre>{{ translationResult }}</pre>
+          </div>
+          <!-- 首token延迟计时 -->
+          <div v-if="firstTokenDelay >= 0" class="fr-first-token-delay">
+            首token: {{ firstTokenDelay }}ms
+            <div v-if="timingDetail" class="fr-timing-breakdown">{{ timingDetail }}</div>
           </div>
         </div>
       </div>
@@ -93,9 +59,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, useTemplateRef, watchEffect } from 'vue';
-import { translateText } from '@/entrypoints/utils/translateApi';
+import { ref, computed, onMounted, onBeforeUnmount, watch, useTemplateRef, watchEffect } from 'vue';
+import { translateText, translateTextStream, type StreamTiming } from '@/entrypoints/utils/translateApi';
 import { config } from '@/entrypoints/utils/config';
+import { services } from '@/entrypoints/utils/option';
 import { autoPlacement, autoUpdate, computePosition, flip, hide, inline, offset, shift } from '@floating-ui/dom';
 
 // 状态变量
@@ -109,16 +76,55 @@ const error = ref('');
 const hideTooltipTimer = ref<number | null>(null);
 const isHoveringTooltip = ref(false);
 const copySuccess = ref(false);
-const isPlaying = ref(false);
-const audioElement = ref<HTMLAudioElement | null>(null);
 const lastSelectedText = ref(''); // 用于存储上一次选择的文本
 const isSelecting = ref(false); // 标记用户是否正在选择文本中
 const debounceTimer = ref<number | null>(null); // 防抖定时器
-const currentPlayingText = ref(''); // 当前正在播放的文本
 const isFirefox = ref(false); // 是否为Firefox浏览器
 const isDarkTheme = ref(false); // 主题状态
+const firstTokenDelay = ref(-1); // 首token延迟（ms），-1 表示尚未测量
+const timingDetail = ref(''); // 首token各阶段耗时明细
 
 const containerRef = useTemplateRef('selection-ref');
+
+// 翻译服务 → 显示名称映射
+const serviceLabel = computed(() => {
+  const labels: Record<string, string> = {
+    [services.microsoft]: '微软翻译',
+    [services.google]: '谷歌翻译',
+    [services.deepL]: 'DeepL',
+    [services.deeplx]: 'DeepLX',
+    [services.xiaoniu]: '小牛翻译',
+    [services.youdao]: '有道翻译',
+    [services.tencent]: '腾讯云翻译',
+    [services.chromeTranslator]: 'Chrome内置AI翻译',
+    [services.siliconCloud]: '硅基流动',
+    [services.huanYuan]: '腾讯混元',
+    [services.huanYuanTranslation]: '腾讯混元翻译',
+    [services.newapi]: 'New API',
+    [services.deepseek]: 'DeepSeek',
+    [services.openai]: 'OpenAI',
+    [services.azureOpenai]: 'Azure OpenAI',
+    [services.qwen]: '千问',
+    [services.doubao]: '字节豆包',
+    [services.grok]: 'Grok',
+    [services.openrouter]: 'OpenRouter',
+    [services.groq]: 'Groq',
+    [services.moonshot]: 'Kimi',
+    [services.zhipu]: '智谱清言',
+    [services.baichuan]: '百川智能',
+    [services.lingyi]: '零一万物',
+    [services.minimax]: 'MiniMax',
+    [services.jieyue]: '阶跃星辰',
+    [services.infini]: '无向芯穹',
+    [services.cozecom]: 'Coze国际',
+    [services.cozecn]: 'Coze国内',
+    [services.claude]: 'Claude',
+    [services.gemini]: 'Gemini',
+    [services.yiyan]: '文心一言',
+    [services.custom]: '自定义接口',
+  };
+  return labels[config.service] || config.service;
+});
 
 // 自动更新小红点位置
 watchEffect((onClean) => {
@@ -242,9 +248,6 @@ const handleMouseEnterTooltip = () => {
 const handleMouseLeaveTooltip = () => {
   isHoveringTooltip.value = false;
   
-  // 如果当前正在播放音频，不自动隐藏弹窗
-  if (isPlaying.value) return;
-  
   setHideTooltipTimer();
 };
 
@@ -252,9 +255,6 @@ const handleMouseLeaveTooltip = () => {
 const setHideTooltipTimer = () => {
   clearHideTooltipTimer();
   hideTooltipTimer.value = window.setTimeout(() => {
-    // 如果当前正在播放音频，不隐藏弹窗
-    if (isPlaying.value) return;
-    
     showTooltip.value = false;
   }, 250); // 250毫秒后隐藏
 };
@@ -276,8 +276,6 @@ const hideIndicator = () => {
 // 关闭翻译弹窗
 const closeTooltip = () => {
   showTooltip.value = false;
-  // 当关闭弹窗时停止音频播放
-  stopAudio();
 };
 
 // 获取翻译结果
@@ -286,14 +284,45 @@ const getTranslation = async () => {
   
   isLoading.value = true;
   error.value = '';
+  translationResult.value = ''; // 清空旧结果，准备流式接收
+  firstTokenDelay.value = -1;   // 重置首token计时
+  timingDetail.value = '';      // 重置耗时明细
+  const translateStartTime = performance.now();
+  
+  // 阶段耗时记录对象
+  const st: StreamTiming = { entry: translateStartTime, afterSync: 0, readyRcvd: 0, requestSent: 0, firstReasoning: 0, firstChunk: 0 };
   
   try {
-    // 使用当前配置的翻译服务进行翻译
-    const result = await translateText(selectedText.value);
+    const result = await translateTextStream(selectedText.value, document.title, (chunk) => {
+      // 首token计时：收到第一个chunk时记录延迟
+      if (firstTokenDelay.value < 0) {
+        firstTokenDelay.value = Math.round(performance.now() - translateStartTime);
+        // 计算各阶段耗时
+        const preprocess = Math.round(st.afterSync - st.entry);
+        const portConnect = Math.round((st.readyRcvd || performance.now()) - st.afterSync);
+        const handshake = Math.round((st.requestSent || performance.now()) - (st.readyRcvd || st.afterSync));
+        const thinking = st.firstReasoning ? Math.round(st.firstChunk - st.firstReasoning) : 0;
+        const apiWait = Math.round((st.firstChunk || performance.now()) - (st.requestSent || st.afterSync));
+        const thinkPart = thinking ? ` | 思考:${thinking}ms` : '';
+        timingDetail.value = `sync:${preprocess}ms | port:${portConnect}ms | shake:${handshake}ms | API:${apiWait}ms${thinkPart}`;
+      }
+      // 流式追加：每收到一个文本块立即显示
+      translationResult.value += chunk;
+    }, st);
+    // 流式完成后确保最终结果
     translationResult.value = result;
   } catch (err) {
-    error.value = '翻译失败，请重试';
-    console.error('Translation error:', err);
+    console.warn('Streaming translation failed, falling back to non-streaming:', err);
+    try {
+      // 流式失败时回退到原有非流式路径
+      const result = await translateText(selectedText.value);
+      translationResult.value = result;
+      error.value = '';
+    } catch (fallbackErr) {
+      const errMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+      error.value = errMsg || '翻译失败，请重试';
+      console.error('Fallback translation error:', fallbackErr);
+    }
   } finally {
     isLoading.value = false;
   }
@@ -318,198 +347,6 @@ const copyTranslation = () => {
     });
 };
 
-// 播放或停止文本语音
-const toggleAudio = (text: string, e?: Event) => {
-  if (!text) return;
-
-  // 阻止事件冒泡，避免触发外部点击事件导致弹窗关闭
-  // 针对Firefox兼容性问题，优先使用传入的事件对象，否则使用全局event
-  if (e) {
-    e.stopPropagation();
-    e.preventDefault();
-  } else if (event) {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-  
-  // 确保弹窗不会消失
-  clearHideTooltipTimer();
-  isHoveringTooltip.value = true;
-
-  // 如果当前正在播放同一文本，则停止播放
-  if (isPlaying.value && currentPlayingText.value === text) {
-    stopAudio(e);
-    return;
-  }
-  
-  // 如果正在播放其他文本，先停止
-  if (isPlaying.value) {
-    stopAudio(e);
-  }
-  
-  // 检测语言
-  const language = detectLanguage(text);
-  
-  // 创建语音合成URL
-  const speechUrl = createSpeechUrl(text, language);
-  
-  // 创建音频元素前先设置状态，解决Firefox中状态更新不及时的问题
-  isPlaying.value = true;
-  currentPlayingText.value = text;
-  
-  // 创建音频元素
-  const audio = new Audio(speechUrl);
-  audioElement.value = audio;
-  
-  // 监听播放开始事件
-  audio.onplay = () => {
-    // 确保状态已更新
-    isPlaying.value = true;
-    currentPlayingText.value = text;
-  };
-  
-  // 监听播放结束事件
-  audio.onended = () => {
-    isPlaying.value = false;
-    audioElement.value = null;
-    currentPlayingText.value = '';
-  };
-  
-  // 监听错误事件
-  audio.onerror = (e) => {
-    console.error('音频播放失败:', e);
-    isPlaying.value = false;
-    audioElement.value = null;
-    currentPlayingText.value = '';
-    
-    // 不要尝试使用Web Speech API作为备选，避免重复播放
-    // tryWebSpeechAPI(text, language);
-  };
-  
-  // 开始播放
-  const playPromise = audio.play();
-  
-  // 处理播放Promise
-  if (playPromise !== undefined) {
-    playPromise.catch(err => {
-      console.error('音频播放出错:', err);
-      isPlaying.value = false;
-      audioElement.value = null;
-      currentPlayingText.value = '';
-      
-      // 尝试使用Web Speech API作为备选，只在Google TTS失败时使用
-      tryWebSpeechAPI(text, language);
-    });
-  }
-};
-
-// 停止音频播放
-const stopAudio = (e?: Event) => {
-  // 阻止事件冒泡
-  if (e) {
-    e.stopPropagation();
-    e.preventDefault();
-  } else if (event) {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-  
-  if (audioElement.value) {
-    audioElement.value.pause();
-    audioElement.value = null;
-  }
-  
-  // 停止Web Speech API
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
-  
-  isPlaying.value = false;
-  currentPlayingText.value = '';
-};
-
-// 检测语言
-const detectLanguage = (text: string): string => {
-  // 简单的语言检测，可根据实际需求完善
-  // 检测是否包含中文字符
-  const hasChinese = /[\u4e00-\u9fa5]/.test(text);
-  if (hasChinese) return 'zh-CN';
-  
-  // 检测是否包含日文字符
-  const hasJapanese = /[\u3040-\u30ff]/.test(text);
-  if (hasJapanese) return 'ja-JP';
-  
-  // 检测是否包含韩文字符
-  const hasKorean = /[\uAC00-\uD7A3]/.test(text);
-  if (hasKorean) return 'ko-KR';
-  
-  // 检测是否包含俄文字符
-  const hasRussian = /[\u0400-\u04FF]/.test(text);
-  if (hasRussian) return 'ru-RU';
-  
-  // 检测是否包含德文特殊字符
-  const hasGerman = /[äöüßÄÖÜ]/.test(text);
-  if (hasGerman) return 'de-DE';
-  
-  // 检测是否包含法文特殊字符
-  const hasFrench = /[àâçéèêëîïôùûüÿæœÀÂÇÉÈÊËÎÏÔÙÛÜŸÆŒ]/.test(text);
-  if (hasFrench) return 'fr-FR';
-  
-  // 检测是否包含西班牙文特殊字符
-  const hasSpanish = /[áéíóúüñÁÉÍÓÚÜÑ]/.test(text);
-  if (hasSpanish) return 'es-ES';
-  
-  // 默认返回英语
-  return 'en-US';
-};
-
-// 创建语音合成URL
-const createSpeechUrl = (text: string, language: string): string => {
-  // 使用Google Text-to-Speech API
-  const encodedText = encodeURIComponent(text);
-  return `https://translate.google.com/translate_tts?ie=UTF-8&tl=${language}&client=tw-ob&q=${encodedText}`;
-};
-
-// 使用Web Speech API作为备选方案
-const tryWebSpeechAPI = (text: string, language: string) => {
-  // 如果已经在播放，不要重复播放
-  if (isPlaying.value) return;
-  
-  // 检查浏览器是否支持Web Speech API
-  if ('speechSynthesis' in window) {
-    // 停止任何可能正在播放的内容
-    window.speechSynthesis.cancel();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language;
-    
-    // 设置状态
-    isPlaying.value = true;
-    currentPlayingText.value = text;
-    
-    utterance.onstart = () => {
-      // 确保状态已更新
-      isPlaying.value = true;
-      currentPlayingText.value = text;
-    };
-    
-    utterance.onend = () => {
-      isPlaying.value = false;
-      currentPlayingText.value = '';
-    };
-    
-    utterance.onerror = () => {
-      isPlaying.value = false;
-      currentPlayingText.value = '';
-    };
-    
-    window.speechSynthesis.speak(utterance);
-  } else {
-    console.error('此浏览器不支持语音合成');
-  }
-};
-
-// 检测是否为Firefox浏览器
 const detectFirefox = () => {
   return navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
 };
@@ -597,9 +434,6 @@ onMounted(() => {
     if (newValue) {
       // 当显示弹窗时，加载翻译结果
       await getTranslation();
-    } else if (isPlaying.value) {
-      // 当关闭弹窗时，停止播放
-      stopAudio();
     }
   });
   
@@ -609,14 +443,6 @@ onMounted(() => {
     const target = e.target as HTMLElement;
     const isOutsideIndicator = !target.closest('.fr-selection-indicator');
     const isOutsideTooltip = !target.closest('.fr-translation-tooltip');
-    
-    // 检查点击事件是否发生在音频按钮上
-    const isAudioButton = target.closest('.fr-text-audio-btn') || target.closest('.fr-stop-audio-btn');
-    
-    // 如果点击在音频按钮上，不要隐藏弹窗
-    if (isAudioButton) {
-      return;
-    }
     
     if (isOutsideIndicator && isOutsideTooltip && showIndicator.value) {
       hideIndicator();
@@ -662,17 +488,6 @@ onBeforeUnmount(() => {
   if (debounceTimer.value) {
     clearTimeout(debounceTimer.value);
     debounceTimer.value = null;
-  }
-  
-  // 停止所有音频播放
-  if (audioElement.value) {
-    audioElement.value.pause();
-    audioElement.value = null;
-  }
-  
-  // 停止Web Speech API
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
   }
 });
 </script>
@@ -919,35 +734,6 @@ onBeforeUnmount(() => {
   color: #ff7875;
 }
 
-/* 文本内播放按钮 */
-.fr-text-audio-btn {
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #999;
-  opacity: 0;
-  transition: opacity 0.2s, color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.fr-original-text:hover .fr-text-audio-btn,
-.fr-translation-result:hover .fr-text-audio-btn {
-  opacity: 1;
-}
-
-.fr-text-audio-btn:hover {
-  color: #1890ff;
-  background-color: rgba(24, 144, 255, 0.1);
-}
-
-/* 自定义滚动条样式 */
 .fr-tooltip-content::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -1023,6 +809,30 @@ onBeforeUnmount(() => {
   cursor: default;
 }
 
+/* 首token延迟显示 */
+.fr-first-token-delay {
+  text-align: right;
+  font-size: 11px;
+  color: #bbb;
+  margin-top: 4px;
+  user-select: none;
+}
+
+.fr-timing-breakdown {
+  font-size: 10px;
+  color: #ccc;
+  margin-top: 2px;
+  font-family: monospace;
+}
+
+.fr-translation-tooltip.fr-dark-theme .fr-first-token-delay {
+  color: #666;
+}
+
+.fr-translation-tooltip.fr-dark-theme .fr-timing-breakdown {
+  color: #555;
+}
+
 /* 移除不需要的选择样式 */
 .user-select-text::selection {
   background-color: #409eff;
@@ -1070,94 +880,6 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-/* 内部播放状态提示 */
-.fr-playing-status {
-  margin-top: 10px;
-  padding: 8px 12px;
-  background-color: rgba(24, 144, 255, 0.1);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #1890ff;
-  font-size: 13px;
-  animation: pulse-light 1.5s infinite;
-}
-
-/* 修复Firefox浏览器中动画丢失的问题 */
-@-moz-document url-prefix() {
-  .fr-playing-status {
-    animation-name: moz-pulse-light;
-  }
-  
-  @keyframes moz-pulse-light {
-    0% {
-      background-color: rgba(24, 144, 255, 0.05);
-    }
-    50% {
-      background-color: rgba(24, 144, 255, 0.15);
-    }
-    100% {
-      background-color: rgba(24, 144, 255, 0.05);
-    }
-  }
-}
-
-.fr-playing-status-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-@keyframes pulse-light {
-  0% {
-    background-color: rgba(24, 144, 255, 0.05);
-  }
-  50% {
-    background-color: rgba(24, 144, 255, 0.15);
-  }
-  100% {
-    background-color: rgba(24, 144, 255, 0.05);
-  }
-}
-
-.fr-stop-audio-btn {
-  background: none;
-  border: none;
-  color: #1890ff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: 50%;
-  margin-left: auto;
-  transition: background-color 0.2s;
-}
-
-.fr-stop-audio-btn:hover {
-  background-color: rgba(24, 144, 255, 0.2);
-}
-
-/* 暗黑模式适配 */
-.fr-translation-tooltip.fr-dark-theme .fr-playing-status {
-  background-color: rgba(64, 169, 255, 0.15);
-  color: #ffffff;
-}
-
-.fr-translation-tooltip.fr-dark-theme .fr-stop-audio-btn {
-  color: #69c0ff;
-}
-
-.fr-translation-tooltip.fr-dark-theme .fr-stop-audio-btn:hover {
-  background-color: rgba(64, 169, 255, 0.2);
-}
-
-/* 移除外部播放提示样式，改为内部显示 */
-.fr-audio-playing-toast {
-  display: none;
-}
-
 @keyframes toast-fade {
   0% { opacity: 0; transform: translate(-50%, -40%); }
   20% { opacity: 1; transform: translate(-50%, -50%); }
@@ -1174,8 +896,7 @@ onBeforeUnmount(() => {
 }
 
 .fr-translation-tooltip.fr-dark-theme .fr-action-btn,
-.fr-translation-tooltip.fr-dark-theme .fr-copy-btn,
-.fr-translation-tooltip.fr-dark-theme .fr-text-audio-btn {
+.fr-translation-tooltip.fr-dark-theme .fr-copy-btn {
   color: #ffffff;
 }
 
@@ -1185,8 +906,4 @@ onBeforeUnmount(() => {
   color: #ffffff;
 }
 
-.fr-translation-tooltip.fr-dark-theme .fr-text-audio-btn:hover {
-  color: #69c0ff;
-  background-color: rgba(24, 144, 255, 0.15);
-}
 </style> 

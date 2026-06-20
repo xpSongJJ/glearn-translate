@@ -57,7 +57,7 @@ export function hasLoadingSpinner(node: Node): boolean {
     if (node.nodeType === Node.TEXT_NODE) return false;
 
     // Type guard to check if the node is an Element
-    if (node instanceof Element && node.classList.contains('fluent-read-loading')) return true;
+    if (node instanceof Element && node.classList.contains('glearn-loading')) return true;
 
     // Check children only if the node is an Element
     if (node instanceof Element) {
@@ -72,7 +72,7 @@ export function hasRetryTag(node: Node): boolean {
     if (node.nodeType === Node.TEXT_NODE) return false;
 
     // Type guard to check if the node is an Element
-    if (node instanceof Element && node.classList.contains('fluent-read-failure')) return true;
+    if (node instanceof Element && node.classList.contains('glearn-failure')) return true;
 
     // Check children only if the node is an Element
     if (node instanceof Element) {

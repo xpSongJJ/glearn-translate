@@ -3,7 +3,7 @@ import microsoft from "./microsoft";
 import deepl from "./deepl";
 import deeplx from "./deeplx";
 import custom from "./custom";
-import tongyi from "./tongyi";
+import qwen from "./qwen";
 import zhipu from "./zhipu";
 import yiyan from "./yiyan";
 import gemini from "./gemini";
@@ -38,7 +38,7 @@ export const _service: ServiceMap = {
 
     // 大模型翻译
     [services.custom]: custom,
-    [services.tongyi]: tongyi,
+    [services.qwen]: qwen,
     [services.zhipu]: zhipu,
     [services.yiyan]: yiyan,
     [services.gemini]: gemini,

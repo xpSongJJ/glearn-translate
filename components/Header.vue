@@ -1,21 +1,20 @@
 <template>
-  <h1 class="title">流畅阅读 <span class="version">V{{version}}</span></h1>
+  <h1 class="title">
+    <img class="title-logo" src="/title-logo.png" alt="拾译" />
+  </h1>
 </template>
-
-<script lang="ts" setup>
-const version = process.env.VUE_APP_VERSION
-</script>
 
 <style scoped>
 .title {
-  font-size: 1.75em;
   margin: 0.5em 0;
-  color: var(--fr-text-color-primary);
-  font-weight: 600;
+  text-align: center;
 }
 
-.version {
-  font-size: 0.5em;
-  opacity: 0.8;
+.title-logo {
+  height: 2.8em;
+  width: auto;
+  vertical-align: middle;
+  user-select: none;
+  image-rendering: auto;
 }
 </style>

@@ -14,7 +14,7 @@ async function common(message: any) {
 
         if(config.service === services.openrouter){
             headers.append('HTTP-Referer', 'https://fluent.thinkstu.com');
-            headers.append('X-Title', 'FluentRead');
+            headers.append('X-Title', 'Glearn');
         }
                 
         const url = config.proxy[config.service] || urls[config.service];
