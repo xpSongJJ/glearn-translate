@@ -13,31 +13,6 @@ import { storage } from '@wxt-dev/storage';
 // 调试相关
 const isDev = process.env.NODE_ENV === 'development';
 
-/** 检测是否为扩展上下文失效错误（扩展重载后 content script 连接断开） */
-function isContextInvalidated(error: unknown): boolean {
-  const msg = String(error?.toString?.() || error || '');
-  return (
-    msg.includes('Extension context invalidated') ||
-    msg.includes('extension context') ||
-    msg.includes('context invalidated')
-  );
-}
-
-/** 已显示过扩展重载提示，避免重复弹出 */
-let _contextWarningShown = false;
-
-/** 友好的扩展重载提示 */
-function warnContextInvalidated(): void {
-  if (_contextWarningShown) return;
-  _contextWarningShown = true;
-  import('./tip').then(({ sendErrorMessage }) => {
-    sendErrorMessage('翻译失败：扩展已更新，请刷新页面后重试');
-  }).catch(() => {
-    // 降级：console 提示
-    console.warn('[翻译API] 扩展已更新，请刷新页面后重试');
-  });
-}
-
 /**
  * 翻译API的统一入口
  * 所有翻译请求都应该通过此函数发送，以便集中管理队列和重试逻辑
@@ -101,12 +76,6 @@ export async function translateText(origin: string, context: string = document.t
 
         return result;
       } catch (error) {
-        // 检测扩展上下文失效（扩展重载后 content script 连接已断开）
-        if (isContextInvalidated(error)) {
-          warnContextInvalidated();
-          throw error; // 不重试，刷新页面是唯一解法
-        }
-
         // 处理错误，根据重试策略决定是否重试
         if (retryCount < maxRetries) {
           if (isDev) {
@@ -217,16 +186,7 @@ export async function translateTextStream(
     let fullText = '';
     let settled = false;
 
-    let port: browser.Runtime.Port;
-    try {
-      port = browser.runtime.connect({ name: 'translate-stream' });
-    } catch (error) {
-      if (isContextInvalidated(error)) {
-        warnContextInvalidated();
-      }
-      reject(error);
-      return;
-    }
+    const port = browser.runtime.connect({ name: 'translate-stream' });
     
     // 超时保护：45s 无响应则断开
     const timeoutId = setTimeout(() => {
@@ -294,14 +254,7 @@ export async function translateTextStream(
         if (fullText) {
           resolve(fullText);
         } else {
-          // 检查是否为扩展上下文失效
-          const errMsg = port.error?.message || '';
-          if (isContextInvalidated(errMsg)) {
-            warnContextInvalidated();
-            reject(new Error('扩展已更新，请刷新页面后重试'));
-          } else {
-            reject(new Error('翻译连接已断开'));
-          }
+          reject(new Error('翻译连接已断开'));
         }
       }
     });
