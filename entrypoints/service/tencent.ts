@@ -1,6 +1,7 @@
 import { method } from "../utils/constant";
 import { services } from "../utils/option";
 import { config } from "@/entrypoints/utils/config";
+import { resolveTargetLanguage } from "@/entrypoints/utils/common";
 
 // 腾讯云机器翻译语言代码映射
 const languageMap: Record<string, string> = {
@@ -103,7 +104,8 @@ async function tencent(message: any) {
         
         // 转换语言代码
         const sourceLang = languageMap[config.from] || config.from;
-        const targetLang = languageMap[config.to] || config.to;
+        const resolvedTargetLanguage = resolveTargetLanguage(message.origin, config.to);
+        const targetLang = languageMap[resolvedTargetLanguage] || resolvedTargetLanguage;
         
         if (!targetLang || targetLang === 'auto') {
             throw new Error('腾讯云机器翻译不支持目标语言自动检测');

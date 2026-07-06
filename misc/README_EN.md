@@ -14,12 +14,6 @@ A browser translation plugin forked from [FluentRead](https://github.com/Bistutu
 - **Highly Customizable**: Rich customization options to meet various use cases.
 - **Completely Free**: Open-source and free, non-commercial project.
 
-<kbd><img src="../misc/sample-git-1.gif" alt="sample-git-1.gif" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
-
-<kbd><img src="../misc/sample-git-4.gif" alt="sample-git-4.gif" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
-
-<kbd><img src="../misc/highlight_trans.png" alt="highlight_trans.png" style="width: 80%; max-width: 100%;border: 1px solid black;"></kbd>
-
 ## 📦 Installation
 
 ### Build from Source

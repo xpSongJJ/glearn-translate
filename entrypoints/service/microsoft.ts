@@ -1,11 +1,13 @@
 import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
+import {resolveTargetLanguage} from "@/entrypoints/utils/common";
 
 async function microsoft(message: any) {
     let fromLang = config.from === 'auto' ? '' : config.from;
+    const targetLang = resolveTargetLanguage(message.origin, config.to);
 
     const jwtToken = await refreshToken(config.token[services.microsoft]);
-    const resp = await fetch(`https://api-edge.cognitive.microsofttranslator.com/translate?from=${fromLang}&to=${config.to}&api-version=3.0&includeSentenceLength=true&textType=html`, {
+    const resp = await fetch(`https://api-edge.cognitive.microsofttranslator.com/translate?from=${fromLang}&to=${targetLang}&api-version=3.0&includeSentenceLength=true&textType=html`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

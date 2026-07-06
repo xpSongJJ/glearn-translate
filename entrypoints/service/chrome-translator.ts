@@ -1,4 +1,5 @@
 import { config } from "@/entrypoints/utils/config";
+import { resolveTargetLanguage } from "@/entrypoints/utils/common";
 
 /**
  * Chrome 内置翻译 API 服务
@@ -20,7 +21,7 @@ async function translateWithOffscreen(message: any): Promise<any> {
                 data: {
                     text: message.origin,
                     from: config.from,
-                    to: config.to
+                    to: resolveTargetLanguage(message.origin, config.to)
                 }
             }, (response: any) => {
                 if (chrome.runtime.lastError) {

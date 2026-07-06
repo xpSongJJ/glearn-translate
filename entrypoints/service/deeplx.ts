@@ -1,10 +1,12 @@
 import {method} from "../utils/constant";
 import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
+import {resolveTargetLanguage} from "@/entrypoints/utils/common";
 
 async function deeplx(message: any) {
     // deeplx 不支持 zh-Hans，需要转换为 zh
-    let targetLang = config.to === 'zh-Hans' ? 'zh' : config.to;
+    const resolvedTargetLanguage = resolveTargetLanguage(message.origin, config.to);
+    let targetLang = resolvedTargetLanguage === 'zh-Hans' ? 'zh' : resolvedTargetLanguage;
     let sourceLang = config.from === 'auto' ? 'auto' : config.from;
     
     // 判断是否使用代理或自定义URL

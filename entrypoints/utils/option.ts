@@ -191,6 +191,7 @@ export const options = {
     ],
     form: [{value: "auto", label: "自动检测"}],
     to: [
+        {value: "default", label: "默认"},
         {value: "zh-Hans", label: "中文"},
         {value: "en", label: "英语"},
         {value: "ja", label: "日语"},

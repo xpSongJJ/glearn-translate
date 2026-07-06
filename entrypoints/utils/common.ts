@@ -1,6 +1,8 @@
 // 防抖限流函数，可传递参数
 import {franc} from "franc-min";
 
+export const DEFAULT_TARGET_LANGUAGE = "default";
+
 // 防抖限流函数，可传递参数
 export function throttle(fn: (...args: any[]) => void, interval: number) {
     let last = 0; // 维护上次执行的时间
@@ -68,4 +70,26 @@ export function findMatchingElement(element: Element, selector: string): Element
     }
 
     return false; // 未找到匹配元素
+}
+
+export function isDefaultTargetLanguage(language: string): boolean {
+    return language === DEFAULT_TARGET_LANGUAGE;
+}
+
+export function isChineseLanguage(language: string): boolean {
+    return language === "zh-Hans" || language === "zh-Hant" || language === "zh" || language === "cmn";
+}
+
+export function resolveTargetLanguage(origin: string, targetLanguage: string): string {
+    if (!isDefaultTargetLanguage(targetLanguage)) return targetLanguage;
+
+    const detectedLanguage = detectlang(origin.replace(/[\s\u3000]/g, ""));
+    return isChineseLanguage(detectedLanguage) ? "en" : "zh-Hans";
+}
+
+export function getPromptTargetLanguage(origin: string, targetLanguage: string): string {
+    if (!isDefaultTargetLanguage(targetLanguage)) return targetLanguage;
+
+    const resolvedLanguage = resolveTargetLanguage(origin, targetLanguage);
+    return resolvedLanguage === "en" ? "English" : "Chinese";
 }

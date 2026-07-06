@@ -1,6 +1,13 @@
 // 消息模板工具
 import {customModelString, defaultOption, services} from "./option";
 import {config} from "@/entrypoints/utils/config";
+import {getPromptTargetLanguage, resolveTargetLanguage} from "@/entrypoints/utils/common";
+
+function fillUserPrompt(origin: string): string {
+    return (config.user_role[config.service] || defaultOption.user_role)
+        .replace('{{to}}', getPromptTargetLanguage(origin, config.to))
+        .replace('{{origin}}', origin);
+}
 
 // openai 格式的消息模板（通用模板）
 export function commonMsgTemplate(origin: string) {
@@ -11,8 +18,7 @@ export function commonMsgTemplate(origin: string) {
     model = model.replace(/（.*）/g, "");
 
     let system = config.system_role[config.service] || defaultOption.system_role;
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     return JSON.stringify({
         'model': model,
@@ -38,8 +44,7 @@ export function deepseekMsgTemplate(origin: string) {
     model = model.replace(/（.*）/g, "");
 
     let system = config.system_role[config.service] || defaultOption.system_role;
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     const payload: any = {
         'model': model,
@@ -58,8 +63,7 @@ export function deepseekMsgTemplate(origin: string) {
 
 // gemini
 export function geminiMsgTemplate(origin: string) {
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     return JSON.stringify({
         "contents": [
@@ -76,8 +80,7 @@ export function claudeMsgTemplate(origin: string) {
     else if (model === "claude-3-opus") model = "claude-3-opus-20240229";
 
     let system = config.system_role[config.service] || defaultOption.system_role;
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     return JSON.stringify({
         model: model,
@@ -95,8 +98,7 @@ export function qwenMsgTemplate(origin: string) {
     let model = config.model[config.service] === customModelString ? config.customModel[config.service] : config.model[config.service]
     const normalTemplate = () => {
         let system = config.system_role[config.service] || defaultOption.system_role;
-        let user = (config.user_role[config.service] || defaultOption.user_role)
-            .replace('{{to}}', config.to).replace('{{origin}}', origin);
+        let user = fillUserPrompt(origin);
 
         return JSON.stringify({
             "model": model,
@@ -118,7 +120,7 @@ export function qwenMsgTemplate(origin: string) {
             {value: "fr"},
             {value: "ru"},
         ]
-        let targetItem = langMap.find(i => i.value === config.to) || langMap[0]
+        let targetItem = langMap.find(i => i.value === resolveTargetLanguage(origin, config.to)) || langMap[0]
         let targetLang = targetItem.target || targetItem.value
         return JSON.stringify({
             "model": model,
@@ -137,8 +139,7 @@ export function qwenMsgTemplate(origin: string) {
 
 // 文心一言
 export function yiyanMsgTemplate(origin: string) {
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     return JSON.stringify({
         'temperature': 0.7,
@@ -152,8 +153,7 @@ export function yiyanMsgTemplate(origin: string) {
 export function minimaxTemplate(origin: string) {
 
     let system = config.system_role[config.service] || defaultOption.system_role;
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     return JSON.stringify({
         model: "MiniMax-Text-01",
@@ -169,8 +169,7 @@ export function minimaxTemplate(origin: string) {
 export function cozeTemplate(origin: string) {
 
     let system = config.system_role[config.service] || defaultOption.system_role;
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     return JSON.stringify({
         bot_id: config.robot_id[config.service],
@@ -186,8 +185,7 @@ export function zhipuMsgTemplate(origin: string) {
     model = model.replace(/（.*）/g, "");
 
     let system = config.system_role[config.service] || defaultOption.system_role;
-    let user = (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', config.to).replace('{{origin}}', origin);
+    let user = fillUserPrompt(origin);
 
     return JSON.stringify({
         'model': model,

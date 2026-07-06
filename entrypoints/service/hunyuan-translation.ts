@@ -1,6 +1,6 @@
 import { method } from "../utils/constant";
 import { config } from "@/entrypoints/utils/config";
-import { detectlang } from "../utils/common";
+import { detectlang, resolveTargetLanguage } from "../utils/common";
 
 // 混元翻译大模型支持的语言代码映射
 const languageMap: Record<string, string> = {
@@ -123,12 +123,13 @@ async function hunyuanTranslation(message: any) {
             sourceLang = languageMap[config.from] || config.from;
         }
         
-        const targetLang = languageMap[config.to] || config.to;
+        const resolvedTargetLanguage = resolveTargetLanguage(message.origin, config.to);
+        const targetLang = languageMap[resolvedTargetLanguage] || resolvedTargetLanguage;
         
         console.log('🌐 语言映射结果:', { 
             originalFrom: config.from, 
             mappedSource: sourceLang,
-            originalTo: config.to, 
+            originalTo: config.to,
             mappedTarget: targetLang 
         });
         

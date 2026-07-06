@@ -1,10 +1,12 @@
 import {method, urls} from "../utils/constant";
 import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
+import {resolveTargetLanguage} from "@/entrypoints/utils/common";
 
 async function xiaoniu(message: any) {
     // 根据需要调整目标语言
-    let targetLang = config.to === 'zh-Hans' ? 'zh' : config.to;
+    const resolvedTargetLanguage = resolveTargetLanguage(message.origin, config.to);
+    let targetLang = resolvedTargetLanguage === 'zh-Hans' ? 'zh' : resolvedTargetLanguage;
 
     // 判断是否使用代理
     let url: string = config.proxy[config.service] ? config.proxy[config.service] : urls[services.xiaoniu]

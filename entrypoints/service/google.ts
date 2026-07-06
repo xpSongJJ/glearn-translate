@@ -1,9 +1,10 @@
 import {method} from "../utils/constant";
 import {config} from "@/entrypoints/utils/config";
+import {resolveTargetLanguage} from "@/entrypoints/utils/common";
 
 async function google(message: any) {
     let params: any = {
-        client: 'gtx', sl: config.from, tl: config.to, dt: 't', strip: 1, nonced: 1,
+        client: 'gtx', sl: config.from, tl: resolveTargetLanguage(message.origin, config.to), dt: 't', strip: 1, nonced: 1,
         'q': encodeURIComponent(message.origin),
     };
     let queryString = Object.keys(params).map((key: string) => key + '=' + params[key]).join('&');

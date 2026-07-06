@@ -1,10 +1,12 @@
 import {method, urls} from "../utils/constant";
 import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
+import {resolveTargetLanguage} from "@/entrypoints/utils/common";
 
 async function deepl(message: any) {
     // deepl 不支持 zh-Hans，需要转换为 zh
-    let targetLang = config.to === 'zh-Hans' ? 'zh' : config.to;
+    const resolvedTargetLanguage = resolveTargetLanguage(message.origin, config.to);
+    let targetLang = resolvedTargetLanguage === 'zh-Hans' ? 'zh' : resolvedTargetLanguage;
 
     // 判断是否使用代理
     let url: string = config.proxy[config.service] ? config.proxy[config.service] : urls[services.deepL]
