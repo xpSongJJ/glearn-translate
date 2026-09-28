@@ -1,68 +1,50 @@
-# 拾译 (Glearn Translate)
+# 拾译 · Glearn Translate
 
-> [English](./misc/README_EN.md) | 中文
+[English](./misc/README_EN.md) · [使用文档](./docs/guide/getting-started.md)
 
-一款基于 [FluentRead](https://github.com/Bistutu/FluentRead) 修改的开源浏览器翻译插件，随手拾译，让所有人都能够拥有母语般的阅读体验。
+简洁、美观、有设计感的 AI 翻译插件，支持网页划词和文本翻译。选中文本后点击或悬停翻译圆点；插件内按 Enter 翻译，Ctrl / ⌘ + Enter 换行。译文卡片支持复制与固定，内容和格式由提示词决定。
 
-## 🌟 特性
+支持 OpenAI、DeepSeek、千问、Claude、Gemini 等 AI 服务，以及 New API 网关和 Ollama 等本地接口。
 
-- **AI 翻译**：支持 OpenAI、DeepSeek、千问、Claude、Gemini、New API、Ollama 等 AI 服务与自定义接口。
-- **文本翻译**：在插件内输入多行文本，点击翻译或按 Ctrl / ⌘ + Enter；译文逐步显示，可一键复制和重试。
-- **划词翻译**：选中文本后点击或悬停翻译圆点，支持双语显示、只显示译文或关闭。
-- **简洁设置**：目标语言和划词模式保留在主界面；服务商、密钥、接口与模型集中在“更多 → 模型 API”，自动保存。
-- **配置迁移**：兼容旧版配置，保留 AI 服务配置，移除机器翻译和网页翻译设置。
-- **显示偏好**：支持系统、亮色和暗色主题，翻译缓存、自定义提示词与配置备份。
+## 安装
 
-本版本仅保留划词与插件内文本翻译，不再提供机器翻译、全文翻译、段落悬浮翻译、网页输入框翻译或用户脚本版本。
-密钥保存在当前浏览器；翻译时文本和密钥会发送给你配置的 AI 服务。插件开源免费，AI 服务费用由服务商决定。
-
-## 快速使用
-
-1. 打开插件，点击“更多”，选择 AI 服务。
-2. 填写密钥和模型名称，或点击“获取列表”选择模型。
-3. 自定义接口填写完整的翻译接口地址；本地 Ollama 可留空 API Key。New API 可填写根地址、`/v1` 地址或完整接口地址。
-4. 返回翻译页，选择目标语言后输入文本，或在网页选中文本进行划词翻译。
-
-目标语言“自动互译（中 ↔ 英）”会将中文译为英文，其它语言译为中文。
-
-## 📦 安装
-
-### 从源码构建
+准备好 Node.js 与 pnpm，在项目目录执行：
 
 ```bash
-# 安装依赖
 pnpm install
-
-
-# 验证类型与回归检查
-pnpm compile
-pnpm test
-
-# 构建 Chrome 版本
 pnpm build
-
-# 构建 Firefox 版本
-pnpm build:firefox
 ```
 
-构建产物在 `.output/` 目录下，在浏览器扩展管理页面加载已解压的扩展即可使用。
+- **Chrome / Edge**：在扩展管理页开启开发者模式，加载 `.output/chrome-mv3`。
+- **Firefox**：运行 `pnpm build:firefox`，在 `about:debugging` 中临时加载 `.output/firefox-mv2/manifest.json`，关闭浏览器后需重新加载。
 
-## 📖 文档
+更新后，重新加载扩展并刷新已打开的网页。
 
-项目文档位于 [docs/](./docs/) 目录，使用 VitePress 构建：
+## 配置
+
+打开插件底部“更多”，选择 **AI 服务**，依次填写 **API 地址、API Key 和模型**。地址默认使用服务地址，可修改为代理或网关；模型支持选择或手动输入，右侧刷新图标可获取列表。设置自动保存。
+
+本地服务选择“自定义接口”，无需鉴权时 API Key 可留空；Azure 需填写自己的资源部署地址。其他接入方式见[模型 API 配置](./docs/config/translation-engines.md)。
+
+目标语言“智能”会将中文译为英文，其他语言译为中文；也可手动指定目标语言。
+
+**System Prompt / User Prompt** 切换编辑，支持恢复默认。User Prompt 支持 `{{to}}`（目标语言，智能模式时留空）和 `{{origin}}`（原文）。默认提示词要求单个英语单词附带音标，无论它是原文还是译文。更多说明见[功能介绍](./docs/guide/features.md)。
+
+## 开发
+
+使用 WXT、Vue 3、TypeScript、Element Plus 和 VitePress。
 
 ```bash
-pnpm docs:dev     # 本地预览文档
-pnpm docs:build   # 构建文档
+pnpm dev          # 开发模式
+pnpm compile      # 类型检查
+pnpm test         # 回归测试
+pnpm docs:dev     # 文档预览
 ```
 
-## 🛠 技术栈
+Firefox 开发使用 `pnpm dev:firefox`；浏览器验证先运行 `pnpm build`，再运行 `pnpm test:browser`。
 
-- **框架**: WXT + Vue 3 + TypeScript
-- **UI**: Element Plus
-- **构建**: Vite
-- **文档**: VitePress
+---
 
-## 📄 许可
+插件开源免费，AI 服务可能计费。配置与密钥保存在当前浏览器，翻译文本及提示词发送至配置的 AI 服务，密钥用于鉴权。缓存启用时，译文保存在本地。
 
-[Apache-2.0](./LICENSE)
+基于 [FluentRead](https://github.com/Bistutu/FluentRead) 修改 · [GPL-3.0](./LICENSE) · [常见问题](./docs/guide/faq.md)

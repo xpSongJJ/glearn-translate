@@ -1,9 +1,10 @@
 import { generateToken } from './service/zhipu';
 import { defineBackground } from 'wxt/utils/define-background';
-import browser from 'webextension-polyfill';
+import { browser } from 'wxt/browser';
 import { openaiSSEStream } from './utils/sse';
 import { getConfigurationError, contentPostHandler } from './utils/check';
 import { translationEndpoint } from './utils/endpoint';
+import { copyInBackground } from './utils/backgroundClipboard';
 import {_service} from "@/entrypoints/service/_service";
 import {config, configReady, saveConfig} from "@/entrypoints/utils/config";
 import {services} from "@/entrypoints/utils/option";
@@ -14,16 +15,32 @@ export default defineBackground({
         safari: false,
     },
     main() {
-        browser.runtime.onMessage.addListener((message: any) => {
+        browser.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
+            if (message.type === 'open-settings') {
+                const field = ['model', 'credentials', 'configuration'].includes(message.field) ? message.field : 'configuration';
+                void browser.tabs.create({ url: browser.runtime.getURL(`/popup.html#settings-${field}`) }).then(
+                    () => sendResponse({ success: true }),
+                    () => sendResponse({ success: false, error: '无法打开配置，请点击插件图标进入“更多”' }),
+                );
+                return true;
+            }
+            if (message.type === 'copy-translation' && typeof message.text === 'string') {
+                void copyInBackground(message.text).then(
+                    () => sendResponse({ success: true }),
+                    error => sendResponse({ success: false, error: error instanceof Error ? error.message : '复制失败' }),
+                );
+                return true;
+            }
             if (typeof message.origin !== 'string') return;
-            return (async () => {
+            void (async () => {
                 await configReady;
                 const error = getConfigurationError();
                 if (error) throw new Error(error);
                 config.count++;
                 void saveConfig().catch(error => console.error('Failed to save translation count:', error));
                 return _service[config.service](message);
-            })();
+            })().then(sendResponse, error => sendResponse({ error: error instanceof Error ? error.message : '翻译失败' }));
+            return true;
         });
 
         // 处理流式翻译请求（端口通信）
@@ -59,7 +76,7 @@ export default defineBackground({
                         const result = await _service[svc](message);
                         port.postMessage({ chunk: result, done: true });
                     } catch (err) {
-                        port.postMessage({ error: err instanceof Error ? err.message : String(err), done: true });
+                        port.postMessage({ error: err instanceof Error ? err.message : String(err), source: 'service', done: true });
                     }
                     return;
                 }
@@ -117,7 +134,9 @@ export default defineBackground({
                     });
                     
                     if (!resp.ok) {
-                        throw new Error(`翻译失败: ${resp.status} ${resp.statusText}`);
+                        const data = await resp.json().catch(() => null);
+                        const detail = typeof data?.error?.message === 'string' ? data.error.message : '';
+                        throw new Error(`翻译失败: ${resp.status} ${resp.statusText}${detail ? ` — ${detail}` : ''}`);
                     }
                     
                     if (!resp.headers.get('content-type')?.includes('text/event-stream')) {
@@ -142,6 +161,7 @@ export default defineBackground({
                     console.error('Streaming translation error:', error);
                     port.postMessage({
                         error: error instanceof Error ? error.message : String(error),
+                        source: 'service',
                         done: true
                     });
                 } finally {

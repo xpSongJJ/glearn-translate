@@ -112,7 +112,7 @@ html, body, #app {
 }
 
 /* 一般按钮（非主按钮/成功按钮） */
-.dark .el-button:not(.el-button--primary):not(.el-button--success) {
+.dark .el-button:not(.el-button--primary):not(.el-button--success):not(.is-text):not(.is-link) {
   background-color: var(--fr-fill-color-light) !important;
   border-color: var(--fr-border-color) !important;
   color: #ffffff !important;
@@ -175,4 +175,4 @@ html, body, #app {
 .el-select-dropdown__item.selected {
   color: var(--el-color-primary) !important;
   font-weight: bold;
-} 
+}

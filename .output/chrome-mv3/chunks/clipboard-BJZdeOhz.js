@@ -1,0 +1,1 @@
+import{b as i,w as o}from"./clipboard-BL7gDcEm.js";i.runtime.onMessage.addListener((r,s,t)=>{if(!(r.target!=="clipboard"||r.type!=="write-clipboard"||typeof r.text!="string"))return o(r.text).then(()=>t({success:!0}),e=>t({success:!1,error:e instanceof Error?e.message:"复制失败"})),!0});

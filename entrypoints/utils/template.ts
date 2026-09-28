@@ -1,12 +1,16 @@
 // 消息模板工具
 import {customModelString, defaultOption, services} from "./option";
 import {config} from "@/entrypoints/utils/config";
-import {getPromptTargetLanguage, resolveTargetLanguage} from "@/entrypoints/utils/common";
+import {getPromptTargetLanguage, isDefaultTargetLanguage, resolveTargetLanguage} from "@/entrypoints/utils/common";
 
 function fillUserPrompt(origin: string): string {
-    return (config.user_role[config.service] || defaultOption.user_role)
-        .replace('{{to}}', getPromptTargetLanguage(origin, config.to))
-        .replace('{{origin}}', origin);
+    const prompt = (config.user_role[config.service] || defaultOption.user_role)
+        .replaceAll('{{to}}', getPromptTargetLanguage(origin, config.to))
+        .replaceAll('{{origin}}', origin);
+    // Include the mode rule for existing custom prompts without rewriting user settings.
+    return isDefaultTargetLanguage(config.to)
+        ? 'Target language is empty. Use intelligent translation: determine the predominant source language; translate predominantly Chinese text into English, and all other languages into Simplified Chinese. Apply this rule only because no target language was specified.\n\n' + prompt
+        : prompt;
 }
 
 // openai 格式的消息模板（通用模板）

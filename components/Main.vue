@@ -1,61 +1,61 @@
 <template>
   <div class="translator" v-if="ready">
     <template v-if="!showAdvanced">
-      <div class="toolbar">
-        <span>AI 文本翻译</span>
-        <el-switch v-model="config.on" aria-label="启用插件" inline-prompt active-text="开" inactive-text="关" />
-      </div>
-      <button class="model-summary" @click="showAdvanced = true">
-        <span>{{ serviceLabel }} · {{ selectedModel || '未选择模型' }}</span>
-        <span class="subtle">配置 ›</span>
-      </button>
-      <div v-if="configurationError && config.on" class="setup-tip">
-        {{ configurationError }}
-        <el-button link type="primary" @click="showAdvanced = true">去配置</el-button>
-      </div>
-      <label class="field-label" for="translation-text">原文</label>
-      <el-input id="translation-text" v-model="text" type="textarea" :rows="4" resize="none"
-        placeholder="输入或粘贴文本，Ctrl / ⌘ + Enter 翻译" :disabled="loading || !config.on"
+      <el-input ref="translationInput" id="translation-text" v-model="text" type="textarea" :autosize="{ minRows: 1, maxRows: 6 }" resize="none"
+        aria-label="待翻译文本" placeholder="输入或粘贴文本" :disabled="loading"
         @keydown="handleInputKeydown" />
-      <div class="translation-actions">
-        <el-select v-model="config.to" aria-label="目标语言" :disabled="loading">
-          <el-option v-for="item in options.to" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <el-button type="primary" :loading="loading" :disabled="!canTranslate" @click="translate">翻译</el-button>
-      </div>
-      <section v-if="loading || result || error" class="result-panel" aria-live="polite" aria-label="翻译结果">
-        <div class="result-heading">
-          <span>{{ loading ? '正在翻译…' : '译文' }}</span>
-          <el-button v-if="result" link type="primary" @click="copyResult">复制</el-button>
+      <p v-if="!shortcutsLearned" class="input-shortcuts">Enter 翻译 · Ctrl+Enter 换行</p>
+      <TranslationCard v-if="cardVisible" class="popup-translation-card" :origin="translatedOrigin" :result="result"
+        :loading="loading" :error="error"
+        @close="closeTranslation" @retry="translate" @configure="openSettings" @refresh="reloadPanel" />
+      <div class="primary-settings">
+        <label class="setting-row"><span>目标语言</span>
+          <el-select v-model="config.to" :empty-values="[null, undefined]" aria-label="目标语言" :disabled="loading">
+            <el-option v-for="item in options.to" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </label>
+        <div class="setting-row"><span id="theme-label">主题</span>
+          <div class="theme-segments" role="radiogroup" aria-labelledby="theme-label">
+            <label v-for="item in themeChoices" :key="item.value" class="theme-segment">
+              <input v-model="config.theme" type="radio" name="theme" :value="item.value" />
+              <span>{{ item.label }}</span>
+            </label>
+          </div>
         </div>
-        <p v-if="error" class="error-text">{{ error }}</p>
-        <pre v-if="result">{{ result }}</pre>
-        <el-button v-if="error && canTranslate" size="small" @click="translate">重试</el-button>
-      </section>
-      <p v-if="!config.on" class="subtle">插件已暂停，开启后可继续翻译。</p>
-      <div class="selection-setting">
-        <span>划词翻译</span>
-        <el-select v-model="config.selectionTranslatorMode" aria-label="划词显示方式">
-          <el-option label="关闭" value="disabled" />
-          <el-option label="双语显示" value="bilingual" />
-          <el-option label="只显示译文" value="translation-only" />
-        </el-select>
+        <div class="setting-row"><span>缓存译文</span>
+          <div class="setting-actions">
+            <el-tooltip content="清除翻译缓存" placement="top" :show-after="150">
+              <el-button class="icon-action clear-cache" :icon="Delete" :loading="clearingCache" text
+                aria-label="清除翻译缓存" @click="clearCache" />
+            </el-tooltip>
+            <el-switch v-model="config.useCache" aria-label="缓存译文" />
+          </div>
+        </div>
       </div>
-      <p class="hint">选中文本后，点击或悬停翻译圆点查看译文。</p>
+      <div v-if="configurationError" class="setup-tip">
+        {{ configurationError }} <el-button link type="primary" @click="showAdvanced = true">去配置</el-button>
+      </div>
     </template>
 
     <template v-else>
-      <div class="toolbar"><span>更多设置</span><el-button link type="primary" @click="showAdvanced = false">返回翻译</el-button></div>
       <h2>模型 API</h2>
-      <p class="hint">设置自动保存，密钥保存在当前浏览器。</p>
       <div class="settings-fields">
         <label>AI 服务
           <el-select v-model="config.service" filterable aria-label="AI 服务">
             <el-option v-for="item in options.services" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </label>
-        <label v-if="servicesType.isUseToken(config.service)">API Key {{ config.service === services.custom ? '（本地服务可留空）' : '' }}
-          <el-input v-model="config.token[config.service]" type="password" show-password placeholder="填写 API Key" />
+        <label v-if="hasApiAddress">API 地址
+          <div class="address-controls">
+            <el-input v-model="apiAddress" aria-label="API 地址" :placeholder="apiAddressPlaceholder" />
+            <el-tooltip v-if="apiAddressModified" content="恢复默认 API 地址" placement="top" :show-after="150">
+              <el-button class="icon-action reset-address" :icon="RefreshLeft" text aria-label="恢复默认 API 地址" @click="resetApiAddress" />
+            </el-tooltip>
+          </div>
+        </label>
+        <label v-if="servicesType.isUseToken(config.service)">API Key
+          <el-input v-model="config.token[config.service]" type="password" show-password
+            :placeholder="config.service === services.custom ? '本地服务可留空' : '填写 API Key'" />
         </label>
         <template v-if="servicesType.isUseAkSk(config.service)">
           <label>API Key<el-input v-model="config.ak" type="password" show-password /></label>
@@ -66,99 +66,107 @@
           <label>Secret Key<el-input v-model="config.tencentSecretKey" type="password" show-password /></label>
         </template>
         <label v-if="servicesType.isCoze(config.service)">机器人 ID<el-input v-model="config.robot_id[config.service]" /></label>
-        <label v-if="config.service === services.custom">接口地址
-          <el-input v-model="config.custom" placeholder="http://localhost:11434/v1/chat/completions" />
-        </label>
-        <label v-if="config.service === services.newapi">New API 地址
-          <el-input v-model="config.newApiUrl" placeholder="https://example.com 或完整接口地址" />
-        </label>
-        <label v-if="config.service === services.azureOpenai">Azure 部署端点
-          <el-input v-model="config.azureOpenaiEndpoint" placeholder="https://…/chat/completions?api-version=…" />
-        </label>
-        <label v-if="servicesType.isUseProxy(config.service) && config.service !== services.azureOpenai">代理接口（可选）
-          <el-input v-model="config.proxy[config.service]" placeholder="填写完整翻译接口地址" />
-        </label>
         <template v-if="servicesType.isUseModel(config.service)">
           <label>模型
             <div class="model-controls">
-              <el-select v-model="modelChoice" filterable aria-label="模型">
+              <el-select v-model="modelChoice" filterable allow-create default-first-option aria-label="模型" placeholder="选择或输入模型 ID">
                 <el-option v-for="model in modelList" :key="model" :label="model" :value="model" />
               </el-select>
-              <el-button :loading="loadingModels" :disabled="!canFetchModels" @click="refreshModels">获取列表</el-button>
+              <el-tooltip v-if="canFetchModels" content="获取模型列表" placement="top" :show-after="150">
+                <el-button class="icon-action fetch-models" :icon="Refresh" :loading="loadingModels"
+                  text aria-label="获取模型列表" @click="refreshModels" />
+              </el-tooltip>
             </div>
           </label>
-          <label v-if="modelChoice === customModelString">模型名称
-            <el-input v-model="config.customModel[config.service]" placeholder="输入服务商提供的模型 ID" />
-          </label>
           <p v-if="modelError" class="error-text">{{ modelError }}</p>
-          <p class="hint">可手动填写模型 ID；不支持获取列表的服务也可使用。</p>
         </template>
       </div>
-      <details class="preferences">
-        <summary>显示与翻译偏好</summary>
-        <div class="settings-fields">
-          <label>主题<el-select v-model="config.theme"><el-option v-for="item in options.theme" :key="item.value" :label="item.label" :value="item.value" /></el-select></label>
-          <div class="selection-setting"><span>动画效果</span><el-switch v-model="config.animations" aria-label="动画效果" /></div>
-          <div class="selection-setting"><span>缓存译文</span><el-switch v-model="config.useCache" aria-label="缓存译文" /></div>
-          <el-button @click="clearCache">清除翻译缓存</el-button>
-          <label>System 提示词<el-input v-model="config.system_role[config.service]" type="textarea" :rows="3" /></label>
-          <label>User 提示词<el-input v-model="config.user_role[config.service]" type="textarea" :rows="4" /></label>
-          <p class="hint">User 提示词支持 <span v-pre>{{to}} 与 {{origin}}</span> 占位符。</p>
-          <el-button @click="resetPrompts">恢复默认提示词</el-button>
+      <section class="preferences">
+        <div class="section-heading">
+          <div class="prompt-tabs" role="tablist" aria-label="提示词" @keydown="handlePromptTabKeydown">
+            <button id="system-prompt-tab" class="prompt-tab" role="tab" :aria-selected="activePrompt === 'system'"
+              :tabindex="activePrompt === 'system' ? 0 : -1" aria-controls="prompt-editor-panel" @click="activePrompt = 'system'">System Prompt</button>
+            <button id="user-prompt-tab" class="prompt-tab" role="tab" :aria-selected="activePrompt === 'user'"
+              :tabindex="activePrompt === 'user' ? 0 : -1" aria-controls="prompt-editor-panel" @click="activePrompt = 'user'">User Prompt</button>
+            <el-tooltip v-if="activePrompt === 'user'" :content="userPromptHint" placement="top" :show-after="150">
+              <button type="button" class="prompt-tip" aria-label="User Prompt 占位符说明"><QuestionFilled /></button>
+            </el-tooltip>
+          </div>
+          <el-tooltip content="恢复当前 Prompt 的默认内容" placement="top" :show-after="150">
+            <el-button class="icon-action reset-prompts" :icon="RefreshLeft" text aria-label="恢复默认 Prompt" @click="resetPrompts" />
+          </el-tooltip>
         </div>
-      </details>
-      <details class="preferences">
-        <summary>配置备份</summary>
-        <p class="hint">导出的配置包含 API 密钥，请妥善保管。</p>
-        <div class="backup-actions"><el-button @click="exportSettings">导出配置</el-button><el-button @click="showImport = !showImport">导入配置</el-button></div>
-        <template v-if="showImport">
-          <el-input v-model="importText" type="textarea" :rows="4" placeholder="粘贴 JSON 配置，兼容旧版本配置" />
-          <el-button class="import-button" type="primary" @click="importSettings">应用配置</el-button>
-        </template>
-      </details>
-      <p class="save-status" role="status">{{ saveError || '设置已自动保存' }}</p>
+        <div id="prompt-editor-panel" role="tabpanel" :aria-labelledby="`${activePrompt}-prompt-tab`">
+          <el-input :key="activePrompt" :id="`${activePrompt}-prompt`" v-model="promptValue" type="textarea"
+            :aria-label="activePrompt === 'system' ? 'System Prompt' : 'User Prompt'" :autosize="{ minRows: 8, maxRows: 12 }" resize="none" />
+        </div>
+      </section>
+      <p v-if="saveError" class="save-status error-text" role="status">{{ saveError }}</p>
     </template>
   </div>
   <p v-else class="hint">正在加载设置…</p>
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, ref, watch, type Ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import browser from 'webextension-polyfill';
-import { config, configReady, normalizeConfig, saveConfig } from '@/entrypoints/utils/config';
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { ElMessage, ElTooltip, type InputInstance } from 'element-plus';
+import { Delete, QuestionFilled, Refresh, RefreshLeft } from '@element-plus/icons-vue';
+import { browser } from 'wxt/browser';
+import TranslationCard from './TranslationCard.vue';
+import { config, configReady, saveConfig } from '@/entrypoints/utils/config';
 import { customModelString, defaultOption, options, services, servicesType } from '@/entrypoints/utils/option';
 import { fetchModels } from '@/entrypoints/utils/modelFetcher';
 import { getConfigurationError } from '@/entrypoints/utils/check';
-import { newApiEndpoint } from '@/entrypoints/utils/endpoint';
+import { newApiEndpoint, configuredApiAddress, defaultApiAddress, setApiAddress } from '@/entrypoints/utils/endpoint';
 import { translateTextStream } from '@/entrypoints/utils/translateApi';
 import { cache } from '@/entrypoints/utils/cache';
 
 const showAdvanced = inject<Ref<boolean>>('showAdvanced')!;
 const ready = ref(false);
+const translationInput = ref<InputInstance>();
 const text = ref('');
 const result = ref('');
 const error = ref('');
 const loading = ref(false);
+const cardVisible = ref(false);
+const translatedOrigin = ref('');
+const clearingCache = ref(false);
+let translationId = 0;
 let translationController: AbortController | undefined;
 const loadingModels = ref(false);
 const modelError = ref('');
 const saveError = ref('');
-const showImport = ref(false);
-const importText = ref('');
+const activePrompt = ref<'system' | 'user'>('system');
+const promptValue = computed({
+  get: () => (activePrompt.value === 'system' ? config.system_role : config.user_role)[config.service],
+  set: (value: string) => { (activePrompt.value === 'system' ? config.system_role : config.user_role)[config.service] = value; },
+});
+const shortcutsLearned = ref(true);
+const shortcutStorageKey = 'textTranslationShortcutsLearned';
+void browser.storage.local.get(shortcutStorageKey).then(stored => {
+  shortcutsLearned.value = stored[shortcutStorageKey] === true;
+}).catch(() => { shortcutsLearned.value = false; });
+const themeChoices = [{ value: 'auto', label: '系统' }, { value: 'light', label: '浅色' }, { value: 'dark', label: '深色' }];
+const userPromptHint = '支持 {{to}}（目标语言）与 {{origin}}（原文）占位符。';
 const configurationError = computed(() => getConfigurationError());
-const serviceLabel = computed(() => options.services.find(item => item.value === config.service)?.label || config.service);
-const selectedModel = computed(() => config.model[config.service] === customModelString ? config.customModel[config.service] : config.model[config.service]);
-const canTranslate = computed(() => ready.value && !loading.value && !!text.value.trim() && !configurationError.value);
+const canTranslate = computed(() => ready.value && !loading.value && !!text.value.trim());
+const hasApiAddress = computed(() => servicesType.isUseProxy(config.service) || servicesType.isUseCustomUrl(config.service));
+const apiAddress = computed({ get: () => configuredApiAddress(config), set: value => setApiAddress(config, value) });
+const apiAddressModified = computed(() => !!defaultApiAddress(config) && apiAddress.value !== defaultApiAddress(config));
+const apiAddressPlaceholder = computed(() => config.service === services.azureOpenai
+  ? 'https://…/chat/completions?api-version=…' : config.service === services.newapi
+    ? 'https://example.com 或完整接口地址' : '填写完整 API 地址');
+function resetApiAddress() { setApiAddress(config, defaultApiAddress(config)); }
 const modelChoice = computed({
-  get: () => config.model[config.service] || customModelString,
-  set: value => { config.model[config.service] = value; },
+  get: () => config.model[config.service] === customModelString
+    ? config.customModel[config.service] || '' : config.model[config.service] || '',
+  set: (value: string) => { config.model[config.service] = value.trim(); },
 });
 const modelList = computed(() => {
   let cached: string[] = [];
   try { cached = JSON.parse(config.cachedModels[config.service] || '[]'); } catch { /* use manual entry */ }
   if (!Array.isArray(cached)) cached = [];
-  return [...new Set([...cached.filter(item => typeof item === 'string'), ...(config.model[config.service] ? [config.model[config.service]] : []), customModelString])];
+  return [...new Set([...cached.filter(item => typeof item === 'string' && item.trim() && item !== customModelString), ...(modelChoice.value ? [modelChoice.value] : [])])];
 });
 const canFetchModels = computed(() => !servicesType.isTencent(config.service) && config.service !== services.azureOpenai);
 const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -166,12 +174,16 @@ const applyTheme = () => document.documentElement.classList.toggle('dark', confi
 media.addEventListener('change', applyTheme);
 watch(() => config.theme, applyTheme, { immediate: true });
 watch(() => config.service, () => { modelError.value = ''; });
+watch([ready, showAdvanced], ([loaded, advanced]) => {
+  if (loaded && !advanced) void nextTick(() => translationInput.value?.focus());
+}, { flush: 'post' });
 
 let persisted = '';
 let stopSaving: (() => void) | undefined;
 configReady.then(() => {
   persisted = JSON.stringify(config);
   ready.value = true;
+  if (window.location.hash.startsWith('#settings-')) void openSettings(window.location.hash.slice('#settings-'.length));
   stopSaving = watch(config, async () => {
     const serialized = JSON.stringify(config);
     if (serialized === persisted) return;
@@ -183,25 +195,52 @@ configReady.then(() => {
 onBeforeUnmount(() => { translationController?.abort(); stopSaving?.(); media.removeEventListener('change', applyTheme); });
 
 function handleInputKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing) {
-    event.preventDefault();
-    if (canTranslate.value) void translate();
+  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  if (event.ctrlKey || event.metaKey) {
+    const input = event.target as HTMLTextAreaElement;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    text.value = text.value.slice(0, start) + '\n' + text.value.slice(end);
+    void nextTick(() => input.setSelectionRange(start + 1, start + 1));
+  } else if (!event.repeat && canTranslate.value) {
+    void translate();
   }
 }
 async function translate() {
   if (!canTranslate.value) return;
-  translationController = new AbortController();
+  const controller = new AbortController(); translationController = controller;
+  const id = ++translationId;
+  translatedOrigin.value = text.value.trim(); cardVisible.value = true;
   loading.value = true; result.value = ''; error.value = '';
   try {
     await saveConfig();
-    result.value = await translateTextStream(text.value.trim(), '文本翻译', chunk => { result.value += chunk; }, undefined, translationController.signal);
-  } catch (err) { error.value = err instanceof Error ? err.message : '翻译失败，请重试'; }
-  finally { loading.value = false; }
+    const translated = await translateTextStream(translatedOrigin.value, '文本翻译', chunk => {
+      if (id === translationId) result.value += chunk;
+    }, undefined, controller.signal);
+    if (id === translationId) {
+      result.value = translated;
+      shortcutsLearned.value = true;
+      void browser.storage.local.set({ [shortcutStorageKey]: true }).catch(() => {});
+    }
+  } catch (err) {
+    if (id === translationId && !controller.signal.aborted) error.value = err instanceof Error ? err.message : '翻译失败，请重试';
+  } finally { if (id === translationId) loading.value = false; }
 }
-async function copyResult() {
-  try { await navigator.clipboard.writeText(result.value); ElMessage.success('译文已复制'); }
-  catch { ElMessage.error('复制失败，请手动选择译文复制'); }
+function closeTranslation() {
+  translationController?.abort(); translationId++;
+  loading.value = false; cardVisible.value = false;
 }
+async function openSettings(field: string) {
+  showAdvanced.value = true;
+  await nextTick();
+  const selector = field === 'model' ? '.model-controls input' : field === 'credentials'
+    ? '.settings-fields input[type="password"]' : '.settings-fields .el-input input';
+  const input = document.querySelector<HTMLInputElement>(selector) ?? document.querySelector<HTMLInputElement>('.settings-fields .el-input input');
+  input?.scrollIntoView({ block: 'nearest' });
+  input?.focus();
+}
+function reloadPanel() { window.location.reload(); }
 async function refreshModels() {
   if (loadingModels.value) return;
   const service = config.service;
@@ -216,60 +255,70 @@ async function refreshModels() {
   } finally { loadingModels.value = false; }
 }
 function resetPrompts() {
-  config.system_role[config.service] = defaultOption.system_role;
-  config.user_role[config.service] = defaultOption.user_role;
+  if (activePrompt.value === 'system') config.system_role[config.service] = defaultOption.system_role;
+  else config.user_role[config.service] = defaultOption.user_role;
   ElMessage.success('已恢复默认提示词');
 }
+function handlePromptTabKeydown(event: KeyboardEvent) {
+  if (!(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'tab') return;
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  activePrompt.value = event.key === 'Home' ? 'system' : event.key === 'End' ? 'user'
+    : activePrompt.value === 'system' ? 'user' : 'system';
+  void nextTick(() => document.getElementById(`${activePrompt.value}-prompt-tab`)?.focus());
+}
 async function clearCache() {
-  cache.clean();
-  const tabs = await browser.tabs.query({});
-  await Promise.allSettled(tabs.filter(tab => tab.id).map(tab => browser.tabs.sendMessage(tab.id!, { type: 'clearCache' })));
-  ElMessage.success('已清除已打开页面的翻译缓存');
-}
-function exportSettings() {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(normalizeConfig(config), null, 2)], { type: 'application/json' }));
-  const link = document.createElement('a'); link.href = url; link.download = 'glearn-config.json'; link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-async function importSettings() {
+  if (clearingCache.value) return;
+  clearingCache.value = true;
   try {
-    const value = JSON.parse(importText.value);
-    if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.service !== 'string' || typeof value.on !== 'boolean') throw new Error('配置格式无效');
-    await ElMessageBox.confirm('导入将覆盖当前设置，是否继续？', '导入配置', { confirmButtonText: '导入', cancelButtonText: '取消' });
-    Object.assign(config, normalizeConfig(value)); await saveConfig();
-    showImport.value = false; importText.value = ''; ElMessage.success('配置已导入');
-  } catch (err) {
-    if (err !== 'cancel' && err !== 'close') ElMessage.error(err instanceof Error ? err.message : '导入失败');
-  }
+    cache.clean();
+    const tabs = await browser.tabs.query({});
+    await Promise.allSettled(tabs.filter(tab => tab.id).map(tab => browser.tabs.sendMessage(tab.id!, { type: 'clearCache' })));
+    ElMessage.success('翻译缓存已清除');
+  } catch { ElMessage.error('清除缓存失败，请重试'); }
+  finally { clearingCache.value = false; }
 }
 </script>
 
 <style scoped>
 .translator { text-align: left; font-size: 14px; }
-.toolbar, .translation-actions, .selection-setting, .result-heading, .model-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.toolbar { font-weight: 600; margin-bottom: 12px; }
-.model-summary { width: 100%; padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--el-border-color); border-radius: 8px; background: var(--el-fill-color-light); color: var(--el-text-color-primary); cursor: pointer; text-align: left; }
-.model-summary > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.subtle { color: var(--el-text-color-secondary); flex-shrink: 0; font-size: 12px; }
-.field-label { display: block; margin-bottom: 6px; }
-.translation-actions { margin-top: 10px; }
-.translation-actions .el-select { flex: 1; min-width: 0; }
-.result-panel { margin-top: 14px; padding: 12px; background: var(--el-fill-color-light); border-radius: 8px; }
-.result-heading { font-weight: 500; }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; max-height: 180px; overflow-y: auto; margin: 8px 0 0; user-select: text; }
-.selection-setting { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--el-border-color-lighter); }
-.selection-setting .el-select { width: 160px; }
+.setting-row, .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.input-shortcuts { margin: 6px 0 0; text-align: right; color: var(--el-text-color-secondary); font-size: 11px; }
+.popup-translation-card { margin-top: 12px; }
+.primary-settings { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--el-border-color-lighter); }
+.setting-row { min-height: 30px; }
+.setting-row .el-select { width: 190px; }
+.theme-segments { display: flex; width: 190px; padding: 3px; box-sizing: border-box; border-radius: 8px; background: var(--el-fill-color-light); }
+.theme-segment { position: relative; flex: 1; cursor: pointer; }
+.theme-segment input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.theme-segment span { display: block; padding: 5px 0; border-radius: 6px; text-align: center; font-size: 12px; color: var(--el-text-color-secondary); }
+.theme-segment input:checked + span { background: var(--el-bg-color); color: var(--el-text-color-primary); box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+.theme-segment input:focus-visible + span { outline: 2px solid var(--el-color-primary); outline-offset: 1px; }
+.setting-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.icon-action { flex: 0 0 32px; width: 32px; height: 32px; padding: 6px; border-radius: 8px; color: var(--el-text-color-secondary); }
+.icon-action:hover { color: var(--el-color-primary); }
+.icon-action:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.icon-action :deep(.el-icon) { font-size: 16px; }
 .hint, .save-status { font-size: 12px; line-height: 1.6; color: var(--el-text-color-secondary); margin: 8px 0; }
-.setup-tip { padding: 10px; margin-bottom: 12px; border-radius: 6px; background: var(--el-color-warning-light-9); color: var(--el-color-warning-dark-2); font-size: 12px; }
-h2 { font-size: 15px; margin: 16px 0 4px; }
-.settings-fields { display: grid; gap: 12px; margin-top: 14px; }
+.setup-tip { padding: 10px; margin-top: 12px; border-radius: 6px; background: var(--el-color-warning-light-9); color: var(--el-color-warning-dark-2); font-size: 12px; }
+h2 { font-size: 12px; font-weight: 600; color: var(--el-text-color-secondary); margin: 0 0 12px; }
+.settings-fields { display: grid; gap: 12px; }
+.section-heading { margin-bottom: 12px; }
+.section-heading h2 { margin: 0; }
 .settings-fields label { display: grid; gap: 6px; font-size: 13px; }
-.model-controls { display: flex; gap: 8px; }
+.prompt-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.prompt-tab { padding: 7px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--el-text-color-secondary); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.prompt-tab[aria-selected="true"] { background: var(--el-fill-color-light); color: var(--el-text-color-primary); font-weight: 600; }
+.prompt-tab:hover { color: var(--el-color-primary); }
+.prompt-tab:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 1px; }
+.prompt-tip { display: inline-flex; padding: 0; border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: help; }
+.prompt-tip svg { width: 14px; height: 14px; }
+.prompt-tip:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; border-radius: 50%; }
+.model-controls, .address-controls { display: flex; gap: 8px; }
+.address-controls .el-input { flex: 1; min-width: 0; }
 .model-controls .el-select { flex: 1; min-width: 0; }
+.translator :deep(.el-input__wrapper), .translator :deep(.el-select__wrapper), .translator :deep(.el-textarea__inner) { border-radius: 8px; }
 .error-text { color: var(--el-color-danger); font-size: 12px; overflow-wrap: anywhere; }
 .preferences { border-top: 1px solid var(--el-border-color-lighter); margin-top: 18px; padding-top: 14px; }
-summary { cursor: pointer; font-size: 13px; font-weight: 500; }
-.backup-actions { display: flex; gap: 8px; margin: 12px 0; }
-.import-button { margin-top: 8px; }
 .save-status { text-align: right; margin-top: 16px; }
 </style>

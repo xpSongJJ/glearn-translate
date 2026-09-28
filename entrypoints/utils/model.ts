@@ -29,12 +29,10 @@ export class Config {
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
     useCache: boolean; // 是否使用缓存
-    selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
     newApiUrl: string; // NewAPI地址
     tencentSecretId: string; // 腾讯云 Secret ID
     tencentSecretKey: string; // 腾讯云 Secret Key
     azureOpenaiEndpoint: string; // Azure OpenAI 端点地址
-    animations: boolean; // 是否启用动画效果
 
     constructor() {
         this.on = true;
@@ -56,12 +54,10 @@ export class Config {
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
         this.useCache = true; // 默认开启缓存
-        this.selectionTranslatorMode = 'bilingual'; // 默认双语显示模式
-        this.newApiUrl = 'http://localhost:3000'; // NewAPI 默认地址
+        this.newApiUrl = defaultOption.newApiUrl;
         this.tencentSecretId = ''; // 腾讯云 Secret ID
         this.tencentSecretKey = ''; // 腾讯云 Secret Key
         this.azureOpenaiEndpoint = ''; // Azure OpenAI 端点地址
-        this.animations = true; // 默认启用动画
     }
 }
 

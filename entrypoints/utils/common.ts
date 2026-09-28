@@ -26,7 +26,7 @@ export function detectlang(origin: string): string {
 }
 
 export function isDefaultTargetLanguage(language: string): boolean {
-    return language === DEFAULT_TARGET_LANGUAGE;
+    return !language.trim() || language === DEFAULT_TARGET_LANGUAGE;
 }
 
 export function isChineseLanguage(language: string): boolean {
@@ -43,6 +43,5 @@ export function resolveTargetLanguage(origin: string, targetLanguage: string): s
 export function getPromptTargetLanguage(origin: string, targetLanguage: string): string {
     if (!isDefaultTargetLanguage(targetLanguage)) return targetLanguage;
 
-    const resolvedLanguage = resolveTargetLanguage(origin, targetLanguage);
-    return resolvedLanguage === "en" ? "English" : "Chinese";
+    return '';
 }

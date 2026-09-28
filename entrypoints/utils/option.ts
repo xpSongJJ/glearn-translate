@@ -164,7 +164,7 @@ export const options = {
     ],
     form: [{value: "auto", label: "自动检测"}],
     to: [
-        {value: "default", label: "自动互译（中 ↔ 英）"},
+        {value: "", label: "智能"},
         {value: "zh-Hans", label: "中文"},
         {value: "en", label: "英语"},
         {value: "ja", label: "日语"},
@@ -207,17 +207,41 @@ export const options = {
 
 };
 
+export const previousDefaultSystemPrompt = 'You are a professional translation engine. Produce output that reads as if originally written in the target language — restructure sentences where needed, use idiomatic expressions, and avoid translationese. Output only the translation result.';
+export const previousDefaultUserPrompt = `Target language: {{to}}
+Translate the following text into the target language. Only when the target language is empty, use intelligent mode: determine the predominant language of the source text; translate predominantly Chinese text into English and all other languages into Simplified Chinese. For mixed-language text, use its predominant language. If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
+
+{{origin}}`;
+
+export const previousPhoneticUserPrompt = previousDefaultUserPrompt.replace('\n\n{{origin}}', `
+
+Single-word exception: if the entire source is a single English word (ignoring surrounding whitespace and punctuation), return the word followed by its standard IPA transcription in /slashes/, then concise translated meanings on the next line. If British and American pronunciations differ, label them UK and US; otherwise give one transcription. For words with different pronunciations by part of speech, label the relevant part of speech. Do not invent pronunciations for codes, abbreviations or unknown names. Do not add examples or commentary. For phrases, sentences and paragraphs, return only the translation without IPA.
+
+{{origin}}`);
+
+export const previousPhoneticSystemPrompt = `${previousDefaultSystemPrompt} Exception: when the entire source is a single English word, also provide its standard IPA pronunciation and concise translated meanings. Do not add pronunciation to phrases, sentences or paragraphs.`;
+export const previousCompactUserPrompt = previousDefaultUserPrompt.replace('\n\n{{origin}}', `
+
+Single-word exception: if the entire source is a single English word (ignoring surrounding whitespace and punctuation), output compact plain text. First line: the source word immediately followed by its standard IPA transcription in /slashes/ on the SAME line. When British and American pronunciations differ, place UK before the British transcription and US before the American transcription, both after the word on that same line. When they are identical, give one transcription without region labels. Next line: part of speech and concise translated meanings. If pronunciation varies by part of speech, use a separate two-line group for each relevant part of speech, with that part of speech beside its pronunciation. Include the source word only once per group. Never place an IPA transcription or a region label on a separate line. Do not use headings, separators, tables, Markdown or code fences. Do not invent pronunciations for codes, abbreviations or unknown names. Do not add examples or commentary. For phrases, sentences and paragraphs, return only the translation without IPA.
+
+{{origin}}`);
+
 export const defaultOption = {
     on: true,
     from: "auto",
-    to: "zh-Hans",
+    to: "",
     custom: "http://localhost:11434/v1/chat/completions",
+    newApiUrl: "http://localhost:3000",
     service: services.deepseek,
     system_role:
-        "You are a professional translation engine. Produce output that reads as if originally written in the target language — restructure sentences where needed, use idiomatic expressions, and avoid translationese. Output only the translation result.",
-    user_role: `Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
+        `${previousDefaultSystemPrompt} Mandatory dictionary-entry exception: when the source is a single English word OR the translation is a single English word, place the English word immediately followed by its standard IPA transcription on the same line. This applies equally to Chinese-to-English and English-to-Chinese, in intelligent and explicitly selected language modes. A non-English source is never a reason to omit IPA from a single-word English translation. Keep full-sentence and paragraph translations free of IPA.`,
+    user_role: previousDefaultUserPrompt.replace('\n\n{{origin}}', `
 
-{{origin}}`,
+Mandatory single-word format (overrides the translation-only rule above): evaluate BOTH the source and the translated result, ignoring surrounding whitespace and punctuation. Apply this format if the source is one English word OR if the translated result is one English word. In particular, when a Chinese word translates to an English word, the ENGLISH TRANSLATION MUST include IPA; do not restrict IPA to English source text. Apply the same rule in intelligent mode and when English is explicitly selected.
+First line: the English word (source word for English-to-other-language, translated word for other-language-to-English) immediately followed by its standard IPA transcription in /slashes/ on the SAME line. When British and American pronunciations differ, use WORD UK /IPA/ US /IPA/; otherwise use WORD /IPA/ without region labels. Next line: part of speech and concise translated meanings; for translation into English, a brief source-language gloss may accompany the part of speech. If offering several single-word English equivalents, put each English word with its own IPA. If pronunciation varies by part of speech, use a separate compact group for each relevant part of speech, with that part of speech beside its pronunciation. Include the English word only once per group. Never put IPA or a region label on a separate line. Do not use headings, separators, tables, Markdown or code fences. Do not invent pronunciations for codes, abbreviations or unknown names. Do not add examples or commentary. Full English phrases, sentences and paragraphs must not have IPA appended to every word.
+Final check before responding: if the output is a single-word English translation, verify that the English word is immediately followed by IPA on the same line. An English word alone is an incomplete response.
+
+{{origin}}`),
     count: 0,
     useCache: true,
 };

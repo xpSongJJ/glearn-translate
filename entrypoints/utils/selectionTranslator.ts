@@ -1,6 +1,5 @@
 import { createApp } from 'vue';
 import SelectionTranslator from '@/components/SelectionTranslator.vue';
-import { config } from '@/entrypoints/utils/config';
 
 let selectionTranslatorInstance: any = null;
 let app: any = null;
@@ -9,8 +8,8 @@ let app: any = null;
  * 挂载选词翻译组件
  */
 export function mountSelectionTranslator() {
-  // 如果已存在实例或配置禁用了此功能，则不创建
-  if (selectionTranslatorInstance || config.selectionTranslatorMode === 'disabled') {
+  // Avoid mounting a duplicate instance.
+  if (selectionTranslatorInstance) {
     return;
   }
 

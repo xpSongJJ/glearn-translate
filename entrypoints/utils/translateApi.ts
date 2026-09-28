@@ -1,7 +1,6 @@
-import browser from 'webextension-polyfill';
+import { extensionRuntime } from './runtime';
 import { config, configReady } from './config';
 import { cache } from './cache';
-import { detectlang, resolveTargetLanguage } from './common';
 import { getConfigurationError } from './check';
 
 /** 流式翻译各阶段耗时记录 */
@@ -39,13 +38,9 @@ export async function translateTextStream(
 ): Promise<string> {
   await configReady;
   if (signal?.aborted) throw new DOMException('翻译已取消', 'AbortError');
+  const runtime = extensionRuntime();
   const configurationError = getConfigurationError();
   if (configurationError) throw new Error(configurationError);
-
-  // 如果目标语言与当前文本语言相同，直接返回原文
-  if (detectlang(origin.replace(/[\s\u3000]/g, '')) === resolveTargetLanguage(origin, config.to)) {
-    return origin;
-  }
 
   // 检查缓存
   if (config.useCache) {
@@ -70,7 +65,13 @@ export async function translateTextStream(
       reject(new DOMException('翻译已取消', 'AbortError'));
     };
 
-    const port = browser.runtime.connect({ name: 'translate-stream' });
+    let port: ReturnType<typeof runtime.connect>;
+    try {
+      port = runtime.connect({ name: 'translate-stream' });
+    } catch {
+      reject(new Error('插件连接已失效，请刷新页面后重试'));
+      return;
+    }
     
     // 超时保护：45s 无响应则断开
     timeoutId = setTimeout(() => {
@@ -101,7 +102,7 @@ export async function translateTextStream(
         settled = true;
         cleanup();
         port.disconnect();
-        reject(new Error(msg.error));
+        reject(new Error(msg.source === 'service' ? `翻译服务返回错误：${msg.error}` : msg.error));
         return;
       }
 
@@ -141,7 +142,7 @@ export async function translateTextStream(
       cleanup();
       if (!settled) {
         settled = true;
-        reject(new Error('翻译连接已断开，请重试'));
+        reject(new Error(runtime.id ? '翻译连接已断开，请重试' : '插件连接已失效，请刷新页面后重试'));
       }
     });
   });

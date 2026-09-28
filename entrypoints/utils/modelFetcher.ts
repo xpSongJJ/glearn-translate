@@ -11,7 +11,9 @@ export interface FetchModelsOptions {
 
 // 从 chat completions URL 推导出 models 端点
 function chatUrlToModelsUrl(chatUrl: string): string {
-    return chatUrl.replace(/\/chat\/completions$/, '/models');
+    const url = new URL(chatUrl);
+    url.pathname = url.pathname.replace(/\/(?:chat\/completions|messages)\/?$/, '/models');
+    return url.toString();
 }
 
 // ============ OpenAI 兼容提供商 ============
@@ -66,9 +68,11 @@ async function fetchClaudeModels(token: string, proxy?: string): Promise<string[
 }
 
 // ============ Gemini ============
-async function fetchGeminiModels(token: string, _proxy?: string): Promise<string[]> {
-    // Gemini 的 models 列表 API 不在代理路径下，用官方端点
-    const modelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${token}`;
+async function fetchGeminiModels(token: string, proxy?: string): Promise<string[]> {
+    const endpoint = new URL(proxy || 'https://generativelanguage.googleapis.com/v1beta/models');
+    endpoint.pathname = endpoint.pathname.replace(/\/models\/[^/]+:generateContent$/, '/models');
+    if (!endpoint.searchParams.has('key')) endpoint.searchParams.set('key', token);
+    const modelsUrl = endpoint.toString();
 
     const resp = await fetch(modelsUrl, { method: 'GET' });
     if (!resp.ok) {

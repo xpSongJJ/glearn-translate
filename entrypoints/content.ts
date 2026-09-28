@@ -1,7 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import browser from 'webextension-polyfill';
-import { watch } from 'vue';
-import { config, configReady } from './utils/config';
+import { browser } from 'wxt/browser';
+import { configReady } from './utils/config';
 import { cache } from './utils/cache';
 import { mountSelectionTranslator, unmountSelectionTranslator } from './utils/selectionTranslator';
 import { mountNewApiComponent, unmountNewApiComponent } from './utils/newApi';
@@ -11,26 +10,17 @@ export default defineContentScript({
     runAt: 'document_end',
     async main(ctx) {
         await configReady;
-        // Keep watching even while disabled, so enabling takes effect without a reload.
-        const stop = watch(
-            () => [config.on, config.selectionTranslatorMode],
-            () => {
-                if (config.on && config.selectionTranslatorMode !== 'disabled') mountSelectionTranslator();
-                else unmountSelectionTranslator();
-            },
-            { immediate: true },
-        );
+        mountSelectionTranslator();
         mountNewApiComponent();
         cache.cleaner();
-        const onMessage = (message: any) => {
+        const onMessage = (message: any, _sender: unknown, sendResponse: (value: unknown) => void) => {
             if (message.type === 'clearCache') {
                 cache.clean();
-                return Promise.resolve({ success: true });
+                sendResponse({ success: true });
             }
         };
         browser.runtime.onMessage.addListener(onMessage);
         ctx.onInvalidated(() => {
-            stop();
             unmountSelectionTranslator();
             unmountNewApiComponent();
             browser.runtime.onMessage.removeListener(onMessage);

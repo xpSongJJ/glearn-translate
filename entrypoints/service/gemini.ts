@@ -12,7 +12,9 @@ async function gemini(message: any) {
     let url: string = config.proxy[config.service] ?
         config.proxy[config.service] : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.token[config.service]}`;
 
-    const resp = await fetch(url, {
+    const endpoint = new URL(url);
+    if (!endpoint.searchParams.has('key')) endpoint.searchParams.set('key', config.token[config.service] || '');
+    const resp = await fetch(endpoint.toString(), {
         method: method.POST,
         headers: {'Content-Type': 'application/json'},
         body: geminiMsgTemplate(message.origin),

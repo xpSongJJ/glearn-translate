@@ -1,7 +1,7 @@
 import { reactive } from 'vue';
 import { storage } from '@wxt-dev/storage';
 import { Config } from './model';
-import { servicesType } from './option';
+import { defaultOption, previousDefaultSystemPrompt, previousDefaultUserPrompt, previousPhoneticUserPrompt, previousCompactUserPrompt, previousPhoneticSystemPrompt, servicesType } from './option';
 
 /** Merge supported settings only, so old backups cannot restore removed features. */
 export function normalizeConfig(value: unknown): Config {
@@ -26,10 +26,14 @@ export function normalizeConfig(value: unknown): Config {
         if (!servicesType.isAI(result.service)) result.service = new Config().service;
     }
     if (!['auto', 'light', 'dark'].includes(result.theme)) result.theme = 'auto';
-    if (!['disabled', 'bilingual', 'translation-only'].includes(result.selectionTranslatorMode)) {
-        result.selectionTranslatorMode = 'bilingual';
+    // The global switch is retired; old paused configurations must remain usable.
+    result.on = true;
+    if (result.to === 'default') result.to = '';
+    const previousUserPrompt = 'Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:\n\n{{origin}}';
+    for (const service of Object.keys(result.user_role)) {
+        if ([previousUserPrompt, previousDefaultUserPrompt, previousPhoneticUserPrompt, previousCompactUserPrompt].includes(result.user_role[service])) result.user_role[service] = defaultOption.user_role;
+        if ([previousDefaultSystemPrompt, previousPhoneticSystemPrompt].includes(result.system_role[service])) result.system_role[service] = defaultOption.system_role;
     }
-    if (source.disableSelectionTranslator === true) result.selectionTranslatorMode = 'disabled';
     result.count = Number.isFinite(result.count) ? Math.max(0, Math.floor(result.count)) : 0;
     return result;
 }

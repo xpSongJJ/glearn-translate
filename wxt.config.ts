@@ -9,7 +9,6 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-    modules: ['@wxt-dev/webextension-polyfill'],
     imports: {
         addons: {
             vueTemplate: true,
@@ -22,8 +21,9 @@ export default defineConfig({
             'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
         }
     }),
-    manifest: {
-        permissions: ['storage'],
-    },
+    manifest: ({ browser }) => ({
+        permissions: ['storage', 'clipboardWrite', ...(browser === 'chrome' ? ['offscreen' as const] : [])],
+        host_permissions: ['<all_urls>'],
+    }),
 
 });

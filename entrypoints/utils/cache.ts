@@ -8,7 +8,7 @@ function buildKey(message: string) {
     const { service, model, to, customModel } = config;
     const selectedModel = model[service] === customModelString ? customModel[service] : model[service];
     // 前缀_服务_模型_目标语言_消息
-    return [prefix, service, selectedModel, to, config.system_role[service], config.user_role[service], config.custom, config.newApiUrl, config.azureOpenaiEndpoint, config.proxy[service], message].join('_');
+    return [prefix, service, selectedModel, to, config.system_role[service], config.user_role[service], config.custom, config.newApiUrl, config.azureOpenaiEndpoint, config.proxy[service], 'translation-ai', message].join('_');
 }
 
 export const cache = {

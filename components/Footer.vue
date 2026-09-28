@@ -1,7 +1,7 @@
 <template>
   <div class="status-row">
-    <span class="status-left">版本 {{ version }}</span>
-    <span class="status-center">你已经翻译 <b>{{ computedCount }}</b> 次</span>
+    <span class="status-left">v{{ version }}</span>
+    <span class="status-center">{{ computedCount }} 次翻译</span>
     <button class="status-right" :aria-expanded="showAdvanced" @click="showAdvanced = !showAdvanced">{{ showAdvanced ? '返回' : '更多' }}</button>
   </div>
 </template>
@@ -21,23 +21,19 @@ const computedCount = computed(() => config.count);
   justify-content: space-between;
   align-items: center;
   padding: 4px 4px 4px 8px;
-  font-size: 0.7em;
-  color: var(--fr-text-color-regular);
-  background: var(--el-fill-color-light);
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  background: var(--fr-bg-color);
   border-top: 1px solid var(--fr-border-color-lighter, #eee);
 }
 
 .status-left {
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .status-center {
   flex: 1;
   text-align: center;
-}
-
-.status-center b {
-  color: var(--el-color-success);
 }
 
 /* 更多按钮 */
@@ -47,13 +43,15 @@ const computedCount = computed(() => config.count);
   font-family: inherit;
   padding: 6px 10px;
   font-size: 1em;
-  color: var(--el-color-primary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   user-select: none;
 }
 
 .status-right:hover {
-  opacity: 0.8;
+  color: var(--el-color-primary);
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
 }
 
 .status-right:active {
