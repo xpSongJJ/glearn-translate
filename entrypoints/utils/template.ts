@@ -74,7 +74,7 @@ export function geminiMsgTemplate(origin: string) {
 
 // claude
 export function claudeMsgTemplate(origin: string) {
-    let model = config.model[services.claude];
+    let model = config.model[services.claude] === customModelString ? config.customModel[services.claude] : config.model[services.claude];
     if (model === "claude-3-5-haiku") model = "claude-3-5-haiku-20241022";
     else if (model === "claude-3-5-sonnet") model = "claude-3-5-sonnet-20241022";
     else if (model === "claude-3-opus") model = "claude-3-opus-20240229";
@@ -156,7 +156,7 @@ export function minimaxTemplate(origin: string) {
     let user = fillUserPrompt(origin);
 
     return JSON.stringify({
-        model: "MiniMax-Text-01",
+        model: config.model[config.service] === customModelString ? config.customModel[config.service] : config.model[config.service],
         stream: false,
         temperature: 0.7,
         messages: [

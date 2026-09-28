@@ -160,24 +160,14 @@ export async function fetchModels(
             return await fetchGeminiModels(opts.token, opts.proxy);
         }
 
-        // 腾讯云机器翻译 / 腾讯混元翻译 — 非 OpenAI 兼容，跳过
+        // 腾讯混元翻译 — 非 OpenAI 兼容，跳过
         if (servicesType.isTencent(service)) {
             return null;
         }
 
-        // 有道 / 小牛 — 传统机器翻译，无模型列表
-        if (service === 'youdao' || service === 'xiaoniu') {
-            return null;
-        }
-
-        // DeepL / DeepLX / 微软 / 谷歌 — 传统翻译，无模型列表
-        if (servicesType.isMachine(service)) {
-            return null;
-        }
-
         // 其余走 OpenAI 兼容路径
-        if (chatUrl && typeof chatUrl === 'string') {
-            return await fetchOpenAICompatibleModels(chatUrl, opts.token, opts.proxy);
+        if ((opts.proxy || chatUrl) && typeof (opts.proxy || chatUrl) === 'string') {
+            return await fetchOpenAICompatibleModels(opts.proxy || chatUrl, opts.token);
         }
 
         return null;

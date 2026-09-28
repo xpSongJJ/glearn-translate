@@ -1,23 +1,15 @@
 import {method, urls} from "../utils/constant";
 import {services} from "../utils/option";
 import {commonMsgTemplate} from "../utils/template";
-import CryptoJS from 'crypto-js';
+import HmacSHA256 from 'crypto-js/hmac-sha256';
+import Base64 from 'crypto-js/enc-base64';
 import {config} from "@/entrypoints/utils/config";
 
 
 // 文档参考：https://open.bigmodel.cn/dev/api#nosdk
 async function zhipu(message: any) {
-    // 智谱根据 token 获取 secret（签名密钥） 和 expiration
-    let token = config.token[services.zhipu];
-    let secret, expiration;
-    config.extra[services.zhipu] && ({secret, expiration} = config.extra[services.zhipu]);
-    if (!secret || expiration <= Date.now()) {
-        secret = generateToken(token);
-        if (!secret) throw new Error('无法生成令牌');
-        // 保存 secret 和 expiration
-        config.extra[services.zhipu] = {secret, expiration: Date.now() + 3600000 * 24};
-        await storage.setItem('local:config', JSON.stringify(config));
-    }
+    const secret = generateToken(config.token[services.zhipu]);
+    if (!secret) throw new Error('智谱 API Key 格式错误');
 
     // 构建请求头
     let headers = new Headers();
@@ -40,9 +32,8 @@ async function zhipu(message: any) {
     }
 }
 
-function generateToken(APIKey: string) {
+export function generateToken(APIKey: string) {
     if (!APIKey || !APIKey.includes('.')) {
-        console.log("API Key 格式错误：", APIKey)
         return;
     }
     let duration = 3600000 * 24; // 生成的 token 默认24小时后过期
@@ -61,7 +52,7 @@ function generateJWT(secret: string, header: any, payload: any) {
     const encodedHeader = base64UrlSafe(btoa(JSON.stringify(header)));
     const encodedPayload = base64UrlSafe(btoa(JSON.stringify(payload)));
     // 生成 jwt 签名
-    let hmacsha256 = base64UrlSafe(CryptoJS.HmacSHA256(encodedHeader + "." + encodedPayload, secret).toString(CryptoJS.enc.Base64))
+    let hmacsha256 = base64UrlSafe(HmacSHA256(encodedHeader + "." + encodedPayload, secret).toString(Base64))
     return `${encodedHeader}.${encodedPayload}.${hmacsha256}`;
 }
 

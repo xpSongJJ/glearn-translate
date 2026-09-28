@@ -1,4 +1,4 @@
-import {services} from "../utils/option";
+import {services, customModelString} from "../utils/option";
 import {yiyanMsgTemplate} from "../utils/template";
 import {method, urls} from "../utils/constant";
 import {config} from "@/entrypoints/utils/config";
@@ -9,7 +9,7 @@ import {config} from "@/entrypoints/utils/config";
 // 文心一言根据 ak, sk 获取 secret 和 expiration
 async function yiyan(message: any) {
 
-    let model = config.model[services.yiyan]
+    let model = config.model[services.yiyan] === customModelString ? config.customModel[services.yiyan] : config.model[services.yiyan]
     // model 参数转换
     if (model === "ERNIE-Bot 4.0") model = "completions_pro"
     else if (model === "ERNIE-Bot") model = "completions"

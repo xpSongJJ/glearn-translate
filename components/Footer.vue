@@ -2,28 +2,17 @@
   <div class="status-row">
     <span class="status-left">版本 {{ version }}</span>
     <span class="status-center">你已经翻译 <b>{{ computedCount }}</b> 次</span>
-    <span class="status-right" @click="showAdvanced = !showAdvanced">更多</span>
+    <button class="status-right" :aria-expanded="showAdvanced" @click="showAdvanced = !showAdvanced">{{ showAdvanced ? '返回' : '更多' }}</button>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { inject, computed, reactive } from 'vue';
-import { Config } from "../entrypoints/utils/model";
-import { storage } from '@wxt-dev/storage';
+import { inject, computed } from 'vue';
+import { config } from '@/entrypoints/utils/config';
 import type { Ref } from 'vue';
-
 const version = process.env.VUE_APP_VERSION;
 const showAdvanced = inject<Ref<boolean>>('showAdvanced')!;
-
-// 获取翻译次数
-let localConfig = reactive(new Config());
-storage.getItem('local:config').then((value) => {
-  if (typeof value === 'string' && value) Object.assign(localConfig, JSON.parse(value));
-});
-storage.watch('local:config', (newValue) => {
-  if (typeof newValue === 'string' && newValue) Object.assign(localConfig, JSON.parse(newValue));
-});
-const computedCount = computed(() => localConfig.count);
+const computedCount = computed(() => config.count);
 </script>
 
 <style scoped>
@@ -53,6 +42,10 @@ const computedCount = computed(() => localConfig.count);
 
 /* 更多按钮 */
 .status-right {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  padding: 6px 10px;
   font-size: 1em;
   color: var(--el-color-primary);
   cursor: pointer;

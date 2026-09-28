@@ -1,3 +1,4 @@
+import { newApiEndpoint } from '../utils/endpoint';
 import { method, urls } from "../utils/constant";
 import {commonMsgTemplate, deepseekMsgTemplate} from "../utils/template";
 import { config } from "@/entrypoints/utils/config";
@@ -10,22 +11,7 @@ async function newapi(message: any) {
             'Authorization': `Bearer ${config.token[config.service]}`
         });
 
-        let url = config.newApiUrl
-
-        if (!url) {
-            throw new Error('New API地址未配置');
-        }
-
-        if (url.endsWith('/')) {
-            url = url.slice(0, -1); // 删除末尾的斜杠
-        }
-
-        // check has /v1
-        if (url.endsWith('/v1')) {
-            url += '/chat/completions';
-        } else if (!url.endsWith('/chat/completions')) {
-            url += '/v1/chat/completions';
-        }
+        const url = newApiEndpoint(config.newApiUrl);
 
         const resp = await fetch(url, {
             method: method.POST,

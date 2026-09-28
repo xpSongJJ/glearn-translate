@@ -1,56 +1,62 @@
-import { Config } from "@/entrypoints/utils/model";
+import { reactive } from 'vue';
+import { storage } from '@wxt-dev/storage';
+import { Config } from './model';
+import { servicesType } from './option';
 
-// 声明 config 类型, new Config() 会设置好所有默认值
-export let config: Config = new Config();
+/** Merge supported settings only, so old backups cannot restore removed features. */
+export function normalizeConfig(value: unknown): Config {
+    const result = new Config();
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
+    const source = value as Record<string, unknown>;
+    for (const key of Object.keys(result) as (keyof Config)[]) {
+        const fallback = result[key];
+        const candidate = source[key];
+        if (fallback && typeof fallback === 'object') {
+            if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+                const entries = Object.entries(candidate).filter(([service, item]) =>
+                    servicesType.isAI(service) && (key === 'extra' || typeof item === 'string'));
+                Object.assign(fallback, Object.fromEntries(entries));
+            }
+        } else if (typeof candidate === typeof fallback) {
+            (result as any)[key] = candidate;
+        }
+    }
+    if (!servicesType.isAI(result.service)) {
+        result.service = Object.keys(result.token).find(service => result.token[service]?.trim()) || result.service;
+        if (!servicesType.isAI(result.service)) result.service = new Config().service;
+    }
+    if (!['auto', 'light', 'dark'].includes(result.theme)) result.theme = 'auto';
+    if (!['disabled', 'bilingual', 'translation-only'].includes(result.selectionTranslatorMode)) {
+        result.selectionTranslatorMode = 'bilingual';
+    }
+    if (source.disableSelectionTranslator === true) result.selectionTranslatorMode = 'disabled';
+    result.count = Number.isFinite(result.count) ? Math.max(0, Math.floor(result.count)) : 0;
+    return result;
+}
+
+export const config = reactive(new Config());
 export const configReady = loadConfig();
 
-// 检查从存储中解析出的对象是否是有效的Config对象
-function isConfigObjectValid(obj: any): obj is Config {
-    if (typeof obj !== 'object' || obj === null) {
-        return false;
-    }
-    // 检查一些关键属性是否存在，以判断配置是否有效
-    return 'on' in obj && 'service' in obj && 'from' in obj && 'to' in obj;
-}
-
-// 异步加载配置并应用
 async function loadConfig() {
     try {
-        const value = await storage.getItem('local:config');
-        if (typeof value === 'string' && value.trim().length > 0) {
-            const parsedConfig = JSON.parse(value);
-            if (isConfigObjectValid(parsedConfig)) {
-                // 如果配置有效，合并到当前 config 中
-                Object.assign(config, parsedConfig);
-                return; // 加载成功，直接返回
-            }
-        }
-        // 如果存储中没有配置、配置为空或无效，则将当前带有默认值的 config 对象存入存储
-        await storage.setItem('local:config', JSON.stringify(config));
+        const stored = await storage.getItem('local:config');
+        const normalized = normalizeConfig(typeof stored === 'string' ? JSON.parse(stored) : stored);
+        Object.assign(config, normalized);
+        const serialized = JSON.stringify(normalized);
+        if (serialized !== stored) await storage.setItem('local:config', serialized);
     } catch (error) {
-        console.error('Error loading or validating config:', error);
-        // 出错时也尝试保存一次默认配置
-        try {
-            await storage.setItem('local:config', JSON.stringify(new Config()));
-        } catch (saveError) {
-            console.error('Failed to save default config after an error:', saveError);
-        }
+        console.error('Failed to load translation settings:', error);
     }
 }
 
-// 监控配置变化并更新 config
-storage.watch('local:config', (newValue: any, oldValue: any) => {
-    if (typeof newValue === 'string' && newValue.trim().length > 0) {
-        try {
-            const parsedConfig = JSON.parse(newValue);
-            if (isConfigObjectValid(parsedConfig)) {
-                // 如果新的配置有效，更新 config
-                Object.assign(config, parsedConfig);
-            } else {
-                console.warn('An invalid configuration was detected in storage.watch. Ignoring.');
-            }
-        } catch (error) {
-            console.error('Error parsing new config in storage.watch:', error);
-        }
+storage.watch('local:config', value => {
+    try {
+        if (typeof value === 'string') Object.assign(config, normalizeConfig(JSON.parse(value)));
+    } catch (error) {
+        console.error('Failed to update translation settings:', error);
     }
 });
+
+export async function saveConfig() {
+    await storage.setItem('local:config', JSON.stringify(normalizeConfig(config)));
+}

@@ -4,7 +4,7 @@
       <el-header class="custom-padding">
         <Header/>
       </el-header>
-      <el-main class="custom-padding" style="min-height: 320px">
+      <el-main class="custom-padding" >
         <Main/>
       </el-main>
       <footer class="footer-bar">
@@ -59,7 +59,7 @@ provide('showAdvanced', showAdvanced);
 
 .el-main {
   flex: 1;
-  min-height: 320px;
+  min-height: 0;
 }
 
 .el-container {
@@ -68,6 +68,7 @@ provide('showAdvanced', showAdvanced);
 
 .custom-padding {
   padding: 12px 16px;
+  height: auto;
 }
 
 .footer-bar {

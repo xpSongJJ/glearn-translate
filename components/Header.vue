@@ -6,12 +6,12 @@
 
 <style scoped>
 .title {
-  margin: 0.5em 0;
+  margin: 0;
   text-align: center;
 }
 
 .title-logo {
-  height: 2.8em;
+  height: 1.8em;
   width: auto;
   vertical-align: middle;
   user-select: none;

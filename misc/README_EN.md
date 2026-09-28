@@ -1,52 +1,28 @@
-# Glearn Translate (拾译)
+# Glearn Translate
 
-> [中文](../README.md) | English
+An open source AI translation extension based on FluentRead.
 
-A browser translation plugin forked from [FluentRead](https://github.com/Bistutu/FluentRead), providing everyone with a native-like reading experience.
+## Features
 
-## 🌟 Features
+- AI providers including OpenAI, DeepSeek, Qwen, Claude, Gemini, New API and custom OpenAI compatible endpoints such as Ollama.
+- Multiline text translation in the popup with streaming output, copy, retry and Ctrl / Cmd + Enter.
+- Selected text translation with bilingual or translation only display.
+- Provider, API key, endpoint and model settings under **More → Model API**, saved automatically.
+- Light, dark and system themes, caching, custom prompts and configuration backups.
+- Migration of existing AI settings. Machine translation, full page translation, paragraph hover translation, webpage input translation and the userscript version have been removed.
 
-- **Smart Translation**: Supports 20+ translation engines, including traditional translation and AI large language models, such as Microsoft Translator, Google Translate, DeepL, OpenAI, DeepSeek, Kimi, Ollama, custom engines, etc.
-- **Bilingual Display**: Supports side-by-side display of original text and translation for easier reading.
-- **Text Selection Translation**: Select any text to get instant translation, with one-click copying of translated content, improving reading efficiency.
-- **Full Page Translation**: One-click translation of entire webpages via a floating ball, switchable without page refresh.
-- **Privacy Protection**: All data is stored locally, with open-source and transparent code.
-- **Highly Customizable**: Rich customization options to meet various use cases.
-- **Completely Free**: Open-source and free, non-commercial project.
+Keys are stored in your browser. Text and credentials are sent to your configured AI provider when translating. Provider charges may apply.
 
-## 📦 Installation
-
-### Build from Source
+## Build
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Build for Chrome
+pnpm compile
+pnpm test
 pnpm build
-
-# Build for Firefox
 pnpm build:firefox
 ```
 
-The build output is in the `.output/` directory. Load the unpacked extension in your browser's extension management page.
+Load the output from `.output/` as an unpacked extension. Set up a provider and model under More before translating.
 
-## 📖 Documentation
-
-Project documentation is in the [docs/](../docs/) directory, built with VitePress:
-
-```bash
-pnpm docs:dev     # Preview docs locally
-pnpm docs:build   # Build docs
-```
-
-## 🛠 Tech Stack
-
-- **Framework**: WXT + Vue 3 + TypeScript
-- **UI**: Element Plus
-- **Bundler**: Vite
-- **Docs**: VitePress
-
-## 📄 License
-
-[Apache-2.0](../LICENSE)
+See the [Chinese README](../README.md) for details.

@@ -1,7 +1,6 @@
 import { createApp } from 'vue';
 import SelectionTranslator from '@/components/SelectionTranslator.vue';
 import { config } from '@/entrypoints/utils/config';
-import { storage } from '@wxt-dev/storage';
 
 let selectionTranslatorInstance: any = null;
 let app: any = null;
@@ -11,7 +10,7 @@ let app: any = null;
  */
 export function mountSelectionTranslator() {
   // 如果已存在实例或配置禁用了此功能，则不创建
-  if (selectionTranslatorInstance || config.disableSelectionTranslator || config.selectionTranslatorMode === 'disabled') {
+  if (selectionTranslatorInstance || config.selectionTranslatorMode === 'disabled') {
     return;
   }
 
@@ -48,29 +47,3 @@ export function unmountSelectionTranslator() {
     }
   }
 }
-
-/**
- * 切换选词翻译组件的启用状态
- */
-export function toggleSelectionTranslator() {
-  if (selectionTranslatorInstance) {
-    unmountSelectionTranslator();
-    config.disableSelectionTranslator = true;
-  } else {
-    config.disableSelectionTranslator = false;
-    mountSelectionTranslator();
-  }
-  
-  // 保存配置到存储
-  saveConfig();
-}
-
-/**
- * 保存配置到存储
- */
-function saveConfig() {
-  // 使用插件提供的存储API保存配置
-  storage.setItem('local:config', JSON.stringify(config)).catch((error) => {
-    console.error('Failed to save config:', error);
-  });
-} 

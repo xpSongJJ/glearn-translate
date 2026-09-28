@@ -1,4 +1,4 @@
-import {defineConfig} from 'wxt';
+import {defineConfig, type WxtViteConfig} from 'wxt';
 import vue from '@vitejs/plugin-vue';
 import {resolve} from 'path';
 import fs from 'fs';
@@ -16,13 +16,14 @@ export default defineConfig({
         },
     },
     vite: () => ({
-        plugins: [vue()],
+        // WXT and the direct Vite dependency resolve different Vite 5 patch types.
+        plugins: [vue()] as unknown as WxtViteConfig['plugins'],
         define: {
             'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
         }
     }),
     manifest: {
-        permissions: ['storage', 'contextMenus', 'offscreen'],
+        permissions: ['storage'],
     },
 
 });

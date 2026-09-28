@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: 拾译
-  text: 浏览器双语翻译插件
+  text: AI 文本与划词翻译插件
   tagline: 让所有人都能够拥有基于母语般的阅读体验
   image:
     src: /logo.png
@@ -22,8 +22,8 @@ features:
     title: AI 驱动
     details: 基于上下文的智能翻译，提供更准确的翻译结果
   - icon: 🥳
-    title: 双语翻译
-    details: 支持多语言双语翻译，让阅读更加便捷
+    title: 文本翻译
+    details: 支持多行输入、流式译文、一键复制与失败重试
   - icon: ✂️
     title: 划词翻译
     details: 选中文本即可查看翻译，一键复制译文，提高学习效率
@@ -32,7 +32,7 @@ features:
     details: 开源免费，非商业化项目
   - icon: 😎
     title: 隐私保护
-    details: 所有数据本地存储，保护隐私安全
+    details: 配置保存在本地，翻译文本发送至你选择的 AI 服务
   - icon: 🙆‍♀️
     title: 多平台支持
     details: 支持 Chrome、Firefox、Edge 等主流浏览器

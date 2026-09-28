@@ -1,3 +1,4 @@
+import { customModelString } from "../utils/option";
 import { method } from "../utils/constant";
 import { config } from "@/entrypoints/utils/config";
 import { detectlang, resolveTargetLanguage } from "../utils/common";
@@ -144,7 +145,7 @@ async function hunyuanTranslation(message: any) {
         }
         
         // 获取模型配置，默认使用 hunyuan-translation
-        const model = config.model[config.service] || 'hunyuan-translation';
+        const model = config.model[config.service] === customModelString ? config.customModel[config.service] : config.model[config.service];
         
         // 构建请求体
         const requestBody: any = {

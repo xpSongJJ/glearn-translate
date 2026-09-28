@@ -4,6 +4,8 @@
       <!-- 小红点指示器 -->
       <div v-if="showIndicator" 
           class="fr-selection-indicator" 
+          role="button" tabindex="0" aria-label="翻译选中文本"
+          @click="handleMouseEnter" @keydown.enter="handleMouseEnter" @keydown.space.prevent="handleMouseEnter"
           @mouseenter="handleMouseEnter"
           @mouseleave="handleMouseLeave">
       </div>
@@ -23,7 +25,7 @@
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
             </button>
-            <button class="fr-close-btn" @click="closeTooltip">×</button>
+            <button class="fr-close-btn" @click="closeTooltip" aria-label="关闭翻译">×</button>
           </div>
         </div>
         <div class="fr-tooltip-content">
@@ -33,15 +35,11 @@
           </div>
           <!-- 译文区域：加载 / 错误 / 结果 -->
           <div v-if="isLoading && !translationResult" :class="['fr-loading-spinner', { 'fr-static': !config.animations }]"></div>
-          <div v-else-if="error" class="fr-error-message">{{ error }}</div>
+          <div v-else-if="error" class="fr-error-message">{{ error }} <button @click="getTranslation">重试</button></div>
           <div v-else-if="config.selectionTranslatorMode === 'bilingual' || config.selectionTranslatorMode === 'translation-only'" class="fr-translation-result fr-no-select">
             <pre>{{ translationResult }}</pre>
           </div>
-          <!-- 首token延迟计时 -->
-          <div v-if="firstTokenDelay >= 0" class="fr-first-token-delay">
-            首token: {{ firstTokenDelay }}ms
-            <div v-if="timingDetail" class="fr-timing-breakdown">{{ timingDetail }}</div>
-          </div>
+
         </div>
       </div>
     </div>
@@ -60,7 +58,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, useTemplateRef, watchEffect } from 'vue';
-import { translateText, translateTextStream, type StreamTiming } from '@/entrypoints/utils/translateApi';
+import { translateTextStream } from '@/entrypoints/utils/translateApi';
 import { config } from '@/entrypoints/utils/config';
 import { services } from '@/entrypoints/utils/option';
 import { autoPlacement, autoUpdate, computePosition, flip, hide, inline, offset, shift } from '@floating-ui/dom';
@@ -81,22 +79,11 @@ const isSelecting = ref(false); // 标记用户是否正在选择文本中
 const debounceTimer = ref<number | null>(null); // 防抖定时器
 const isFirefox = ref(false); // 是否为Firefox浏览器
 const isDarkTheme = ref(false); // 主题状态
-const firstTokenDelay = ref(-1); // 首token延迟（ms），-1 表示尚未测量
-const timingDetail = ref(''); // 首token各阶段耗时明细
-
 const containerRef = useTemplateRef('selection-ref');
 
 // 翻译服务 → 显示名称映射
 const serviceLabel = computed(() => {
   const labels: Record<string, string> = {
-    [services.microsoft]: '微软翻译',
-    [services.google]: '谷歌翻译',
-    [services.deepL]: 'DeepL',
-    [services.deeplx]: 'DeepLX',
-    [services.xiaoniu]: '小牛翻译',
-    [services.youdao]: '有道翻译',
-    [services.tencent]: '腾讯云翻译',
-    [services.chromeTranslator]: 'Chrome内置AI翻译',
     [services.siliconCloud]: '硅基流动',
     [services.huanYuan]: '腾讯混元',
     [services.huanYuanTranslation]: '腾讯混元翻译',
@@ -278,53 +265,39 @@ const closeTooltip = () => {
   showTooltip.value = false;
 };
 
-// 获取翻译结果
+let translationController: AbortController | undefined;
+let requestId = 0;
+watch(selectedText, () => {
+  translationController?.abort();
+  requestId++;
+  translationResult.value = '';
+  error.value = '';
+  isLoading.value = false;
+  if (showTooltip.value) void getTranslation();
+});
+
+// A new selection must never receive chunks from an older request.
 const getTranslation = async () => {
   if (!selectedText.value) return;
-  
+  translationController?.abort();
+  const controller = new AbortController();
+  translationController = controller;
+  const currentId = ++requestId;
+  const origin = selectedText.value;
   isLoading.value = true;
   error.value = '';
-  translationResult.value = ''; // 清空旧结果，准备流式接收
-  firstTokenDelay.value = -1;   // 重置首token计时
-  timingDetail.value = '';      // 重置耗时明细
-  const translateStartTime = performance.now();
-  
-  // 阶段耗时记录对象
-  const st: StreamTiming = { entry: translateStartTime, afterSync: 0, readyRcvd: 0, requestSent: 0, firstReasoning: 0, firstChunk: 0 };
-  
+  translationResult.value = '';
   try {
-    const result = await translateTextStream(selectedText.value, document.title, (chunk) => {
-      // 首token计时：收到第一个chunk时记录延迟
-      if (firstTokenDelay.value < 0) {
-        firstTokenDelay.value = Math.round(performance.now() - translateStartTime);
-        // 计算各阶段耗时
-        const preprocess = Math.round(st.afterSync - st.entry);
-        const portConnect = Math.round((st.readyRcvd || performance.now()) - st.afterSync);
-        const handshake = Math.round((st.requestSent || performance.now()) - (st.readyRcvd || st.afterSync));
-        const thinking = st.firstReasoning ? Math.round(st.firstChunk - st.firstReasoning) : 0;
-        const apiWait = Math.round((st.firstChunk || performance.now()) - (st.requestSent || st.afterSync));
-        const thinkPart = thinking ? ` | 思考:${thinking}ms` : '';
-        timingDetail.value = `sync:${preprocess}ms | port:${portConnect}ms | shake:${handshake}ms | API:${apiWait}ms${thinkPart}`;
-      }
-      // 流式追加：每收到一个文本块立即显示
-      translationResult.value += chunk;
-    }, st);
-    // 流式完成后确保最终结果
-    translationResult.value = result;
+    const result = await translateTextStream(origin, document.title, chunk => {
+      if (currentId === requestId) translationResult.value += chunk;
+    }, undefined, controller.signal);
+    if (currentId === requestId) translationResult.value = result;
   } catch (err) {
-    console.warn('Streaming translation failed, falling back to non-streaming:', err);
-    try {
-      // 流式失败时回退到原有非流式路径
-      const result = await translateText(selectedText.value);
-      translationResult.value = result;
-      error.value = '';
-    } catch (fallbackErr) {
-      const errMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-      error.value = errMsg || '翻译失败，请重试';
-      console.error('Fallback translation error:', fallbackErr);
+    if (currentId === requestId && !controller.signal.aborted) {
+      error.value = err instanceof Error ? err.message : '翻译失败，请重试';
     }
   } finally {
-    isLoading.value = false;
+    if (currentId === requestId) isLoading.value = false;
   }
 };
 
@@ -424,10 +397,6 @@ onMounted(() => {
   document.addEventListener('selectionchange', selectionChangeHandler);
   
   // 更新clickHandler定义，添加selectionchange的清理
-  const originalClickHandler = clickHandler;
-  clickHandler = (e: Event) => {
-    originalClickHandler(e);
-  };
   
   // 监听翻译显示状态的变化
   watch(showTooltip, async (newValue: boolean) => {
@@ -463,6 +432,8 @@ let systemThemeHandler: () => void;
 
 // 清理事件监听 (修复清理逻辑)
 onBeforeUnmount(() => {
+  translationController?.abort();
+  requestId++;
   // 正确移除事件监听器
   if (mouseDownHandler) {
     document.removeEventListener('mousedown', mouseDownHandler);

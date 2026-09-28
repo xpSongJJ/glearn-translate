@@ -1,3 +1,4 @@
+import { translationEndpoint } from '../utils/endpoint';
 import {services} from "../utils/option";
 import {method} from "../utils/constant";
 import {minimaxTemplate} from "../utils/template";
@@ -9,7 +10,7 @@ async function minimax(message: any) {
     headers.append('Content-Type', 'application/json');
     headers.append('Authorization', `Bearer ${config.token[services.minimax]}`);
 
-    let url = "https://api.minimax.chat/v1/text/" + config.model[services.minimax];
+    let url = translationEndpoint(config);
 
     console.log(url)
 
