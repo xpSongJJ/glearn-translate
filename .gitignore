@@ -14,14 +14,6 @@ dist
 !.output/chrome-mv3
 .wxt
 
-# Docs
-docs/.vitepress/dist
-docs/.vitepress/cache
-docs/.vitepress/.temp
-docs/.vitepress/cache
-docs/.temp
-docs/.cache
-
 # Development
 web-ext.config.ts
 stats.html

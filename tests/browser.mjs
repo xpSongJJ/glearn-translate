@@ -189,6 +189,38 @@ try {
   assert.equal(await evaluate(popup, 'document.querySelectorAll(".preferences textarea").length'), 1);
   assert.ok(await evaluate(popup, 'document.querySelector("#system-prompt").getBoundingClientRect().height > 150'));
   const initialSystemPrompt = await evaluate(popup, 'document.querySelector("#system-prompt").value');
+  const switchPromptAtBottom = async (prompt, keyboard = false) => {
+    const before = await evaluate(popup, `(() => {
+      const panel = document.querySelector('.popup-content');
+      window.promptEditorBeforeSwitch = document.querySelector('.preferences textarea');
+      if (${keyboard}) document.querySelector('[role=tab][aria-selected=true]').focus({ preventScroll: true });
+      panel.scrollTop = panel.scrollHeight;
+      return panel.scrollTop;
+    })()`);
+    assert.ok(before > 0, 'Settings panel scrolls before switching prompts');
+    if (keyboard) {
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight' }, popup);
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight' }, popup);
+    } else {
+      await evaluate(popup, `document.querySelector('#${prompt}-prompt-tab').click()`);
+    }
+    await until(popup, `!!document.querySelector('#${prompt}-prompt')`);
+    await pause(100);
+    const after = await evaluate(popup, `(() => {
+      const panel = document.querySelector('.popup-content');
+      return { scrollTop: panel.scrollTop, maxScroll: panel.scrollHeight - panel.clientHeight,
+        sameEditor: window.promptEditorBeforeSwitch === document.querySelector('.preferences textarea') };
+    })()`);
+    assert.ok(Math.abs(after.scrollTop - Math.min(before, after.maxScroll)) <= 1,
+      `Switching to ${prompt} preserves panel scroll: ${JSON.stringify({ before, ...after })}`);
+    assert.ok(after.sameEditor, 'Prompt switching reuses the editor without collapsing its height');
+    if (keyboard) assert.equal(await evaluate(popup, 'document.activeElement.id'), `${prompt}-prompt-tab`);
+  };
+  await switchPromptAtBottom('user');
+  await switchPromptAtBottom('system');
+  await switchPromptAtBottom('user', true);
+  await switchPromptAtBottom('system', true);
+  console.log('✓ Prompt switching by mouse and keyboard preserves the settings panel scroll position');
   await evaluate(popup, '(() => { const input = document.querySelector("#system-prompt"); input.value = "Custom system prompt"; input.dispatchEvent(new Event("input", { bubbles: true })); document.querySelector("#user-prompt-tab").click(); })()');
   await until(popup, '!!document.querySelector("#user-prompt")');
   assert.equal(await evaluate(popup, 'document.querySelectorAll(".preferences textarea").length'), 1);

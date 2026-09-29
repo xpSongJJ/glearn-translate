@@ -97,7 +97,7 @@
           </el-tooltip>
         </div>
         <div id="prompt-editor-panel" role="tabpanel" :aria-labelledby="`${activePrompt}-prompt-tab`">
-          <el-input :key="activePrompt" :id="`${activePrompt}-prompt`" v-model="promptValue" type="textarea"
+          <el-input :id="`${activePrompt}-prompt`" v-model="promptValue" type="textarea"
             :aria-label="activePrompt === 'system' ? 'System Prompt' : 'User Prompt'" :autosize="{ minRows: 8, maxRows: 12 }" resize="none" />
         </div>
       </section>
@@ -265,7 +265,7 @@ function handlePromptTabKeydown(event: KeyboardEvent) {
   event.preventDefault();
   activePrompt.value = event.key === 'Home' ? 'system' : event.key === 'End' ? 'user'
     : activePrompt.value === 'system' ? 'user' : 'system';
-  void nextTick(() => document.getElementById(`${activePrompt.value}-prompt-tab`)?.focus());
+  void nextTick(() => document.getElementById(`${activePrompt.value}-prompt-tab`)?.focus({ preventScroll: true }));
 }
 async function clearCache() {
   if (clearingCache.value) return;
