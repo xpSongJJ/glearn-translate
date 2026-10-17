@@ -91,8 +91,8 @@ async function getTranslation() {
   const currentId = ++requestId;
   isLoading.value = true; error.value = ''; translationResult.value = '';
   try {
-    const result = await translateTextStream(selectedText.value, document.title, chunk => {
-      if (currentId === requestId) translationResult.value += chunk;
+    const result = await translateTextStream(selectedText.value, document.title, (chunk, reset) => {
+      if (currentId === requestId) translationResult.value = reset ? '' : translationResult.value + chunk;
     }, undefined, currentController.signal);
     if (currentId === requestId) translationResult.value = result;
   } catch (cause) {
@@ -108,7 +108,7 @@ function handleSelection() {
     const selection = window.getSelection();
     if (!selection?.rangeCount || insideCard(selection.anchorNode)) return;
     const text = selection.toString().trim();
-    if (text.length < 2 || text.length > 4096) return;
+    if (!text || text.length > 4096) return;
     selectedText.value = text;
     range.value = selection.getRangeAt(0).cloneRange();
     showIndicator.value = true;

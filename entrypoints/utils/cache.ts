@@ -1,5 +1,6 @@
 import { customModelString } from "./option";
 import { config } from "@/entrypoints/utils/config";
+import { translationPromptVersion } from './translationPrompt';
 
 const prefix = "flcache_"; // fluent read cache
 
@@ -8,7 +9,7 @@ function buildKey(message: string) {
     const { service, model, to, customModel } = config;
     const selectedModel = model[service] === customModelString ? customModel[service] : model[service];
     // 前缀_服务_模型_目标语言_消息
-    return [prefix, service, selectedModel, to, config.system_role[service], config.user_role[service], config.custom, config.newApiUrl, config.azureOpenaiEndpoint, config.proxy[service], 'translation-ai', message].join('_');
+    return [prefix, translationPromptVersion, service, selectedModel, to, config.system_role[service], config.user_role[service], config.custom, config.newApiUrl, config.azureOpenaiEndpoint, config.proxy[service], 'translation-ai', message].join('_');
 }
 
 export const cache = {

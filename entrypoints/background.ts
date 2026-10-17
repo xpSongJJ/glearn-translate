@@ -7,8 +7,10 @@ import { translationEndpoint } from './utils/endpoint';
 import { copyInBackground } from './utils/backgroundClipboard';
 import {_service} from "@/entrypoints/service/_service";
 import {config, configReady, saveConfig} from "@/entrypoints/utils/config";
-import {services} from "@/entrypoints/utils/option";
+import {defaultOption, services} from "@/entrypoints/utils/option";
 import {commonMsgTemplate, deepseekMsgTemplate, qwenMsgTemplate, minimaxTemplate, zhipuMsgTemplate} from "@/entrypoints/utils/template";
+import {resolveTargetLanguage} from './utils/common';
+import {translateWithQualityCheck} from './utils/translationQuality';
 
 export default defineBackground({
     persistent: {
@@ -102,7 +104,6 @@ export default defineBackground({
                     // 注入 stream: true
                     const bodyObj = JSON.parse(body);
                     bodyObj.stream = true;
-                    body = JSON.stringify(bodyObj);
                     
                     // 构建请求头和 URL
                     const headers = new Headers({
@@ -125,37 +126,50 @@ export default defineBackground({
                         headers.set('api-key', config.token[svc]);
                     }
                     const url = translationEndpoint(config);
-                    
-                    const resp = await fetch(url, {
-                        method: 'POST',
-                        headers,
-                        signal: controller.signal,
-                        body
+                    // Validate defaults only: custom prompts and dedicated MT
+                    // payloads may intentionally use a different output format.
+                    const validate = (config.user_role[svc] || defaultOption.user_role) === defaultOption.user_role
+                        && (config.system_role[svc] || defaultOption.system_role) === defaultOption.system_role
+                        && !bodyObj.translation_options;
+                    const result = await translateWithQualityCheck({
+                        origin: message.origin,
+                        target: resolveTargetLanguage(message.origin, config.to),
+                        enabled: validate,
+                        onRetry: () => port.postMessage({ reset: true }),
+                        request: async (correction, previous) => {
+                            const payload = correction ? {
+                                ...bodyObj,
+                                messages: [...bodyObj.messages, { role: 'assistant', content: previous }, { role: 'user', content: correction }],
+                            } : bodyObj;
+                            const resp = await fetch(url, {
+                                method: 'POST', headers, signal: controller.signal, body: JSON.stringify(payload),
+                            });
+                            if (!resp.ok) {
+                                const data = await resp.json().catch(() => null);
+                                const detail = typeof data?.error?.message === 'string' ? data.error.message : '';
+                                throw new Error(`翻译失败: ${resp.status} ${resp.statusText}${detail ? ` — ${detail}` : ''}`);
+                            }
+                            let fullText = '';
+                            if (!resp.headers.get('content-type')?.includes('text/event-stream')) {
+                                const data = await resp.json();
+                                const content = data.choices?.[0]?.message?.content;
+                                if (typeof content !== 'string' || !content.trim()) throw new Error('翻译服务未返回译文');
+                                fullText = content;
+                                port.postMessage({ chunk: contentPostHandler(content) });
+                            } else {
+                                for await (const event of openaiSSEStream(resp)) {
+                                    if (event.reasoning) port.postMessage({ reasoning: true });
+                                    if (event.content) {
+                                        fullText += event.content;
+                                        port.postMessage({ chunk: event.content, done: false });
+                                    }
+                                }
+                            }
+                            if (!fullText.trim()) throw new Error('翻译服务未返回译文');
+                            return contentPostHandler(fullText);
+                        },
                     });
-                    
-                    if (!resp.ok) {
-                        const data = await resp.json().catch(() => null);
-                        const detail = typeof data?.error?.message === 'string' ? data.error.message : '';
-                        throw new Error(`翻译失败: ${resp.status} ${resp.statusText}${detail ? ` — ${detail}` : ''}`);
-                    }
-                    
-                    if (!resp.headers.get('content-type')?.includes('text/event-stream')) {
-                        const data = await resp.json();
-                        const content = data.choices?.[0]?.message?.content;
-                        if (typeof content !== 'string' || !content.trim()) throw new Error('翻译服务未返回译文');
-                        port.postMessage({ chunk: contentPostHandler(content), done: true });
-                        return;
-                    }
-                    let fullText = '';
-                    for await (const event of openaiSSEStream(resp)) {
-                        if (event.reasoning) port.postMessage({ reasoning: true });
-                        if (event.content) {
-                            fullText += event.content;
-                            port.postMessage({ chunk: event.content, done: false });
-                        }
-                    }
-                    if (!fullText.trim()) throw new Error('翻译服务未返回译文');
-                    port.postMessage({ result: contentPostHandler(fullText), done: true });
+                    port.postMessage({ result, done: true });
                 } catch (error) {
                     if (controller.signal.aborted) return;
                     console.error('Streaming translation error:', error);

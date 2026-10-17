@@ -2,14 +2,21 @@
 import {customModelString, defaultOption, services} from "./option";
 import {config} from "@/entrypoints/utils/config";
 import {getPromptTargetLanguage, isDefaultTargetLanguage, resolveTargetLanguage} from "@/entrypoints/utils/common";
+import {selectionFormatInstruction} from './translationPrompt';
 
 function fillUserPrompt(origin: string): string {
-    const prompt = (config.user_role[config.service] || defaultOption.user_role)
-        .replaceAll('{{to}}', getPromptTargetLanguage(origin, config.to))
-        .replaceAll('{{origin}}', origin);
-    // Include the mode rule for existing custom prompts without rewriting user settings.
+    const template = config.user_role[config.service] || defaultOption.user_role;
+    const target = getPromptTargetLanguage(origin, config.to);
+    // One pass prevents selected text such as "{{to}}" from becoming a directive.
+    const filled = template.replace(/\{\{(to|origin)\}\}/g, (_, key: string) =>
+        key === 'to' ? target : template === defaultOption.user_role ? JSON.stringify(origin) : origin);
+    const marker = 'Source text (JSON string; decode the string and translate its contents):\n';
+    const prompt = template === defaultOption.user_role
+        ? filled.replace(marker, () => selectionFormatInstruction(origin, target) + marker)
+        : filled;
+    // Custom prompts receive the same concrete smart-mode target as defaults.
     return isDefaultTargetLanguage(config.to)
-        ? 'Target language is empty. Use intelligent translation: determine the predominant source language; translate predominantly Chinese text into English, and all other languages into Simplified Chinese. Apply this rule only because no target language was specified.\n\n' + prompt
+        ? `Intelligent mode resolved target language: ${target}. Translate into this language; do not redetect or reverse the translation direction.\n\n` + prompt
         : prompt;
 }
 
@@ -26,7 +33,7 @@ export function commonMsgTemplate(origin: string) {
 
     return JSON.stringify({
         'model': model,
-        "temperature": 1.0,
+        "temperature": 0.2,
         'messages': [
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': user},
@@ -56,7 +63,7 @@ export function deepseekMsgTemplate(origin: string) {
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': user},
         ],
-        temperature: 0.7,
+        temperature: 0.2,
         // 翻译场景不需要思考，显式禁用
         thinking: { type: 'disabled' },                        // 直连 DeepSeek API
         'extra_body': { thinking: { type: 'disabled' } },      // 经代理透传
@@ -146,7 +153,7 @@ export function yiyanMsgTemplate(origin: string) {
     let user = fillUserPrompt(origin);
 
     return JSON.stringify({
-        'temperature': 0.7,
+        'temperature': 0.2,
         'disable_search': true, // 禁用搜索
         'messages': [
             {"role": "user", "content": user},
@@ -162,7 +169,7 @@ export function minimaxTemplate(origin: string) {
     return JSON.stringify({
         model: config.model[config.service] === customModelString ? config.customModel[config.service] : config.model[config.service],
         stream: false,
-        temperature: 0.7,
+        temperature: 0.2,
         messages: [
             {role: 'system', content: system},
             {role: 'user', content: user},
@@ -197,7 +204,7 @@ export function zhipuMsgTemplate(origin: string) {
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': user},
         ],
-        temperature: 0.7,
+        temperature: 0.2,
         thinking: { type: 'disabled' },                        // 直连智谱 API
         'extra_body': { thinking: { type: 'disabled' } },      // 经代理透传
     });

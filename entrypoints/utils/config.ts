@@ -1,7 +1,8 @@
 import { reactive } from 'vue';
 import { storage } from '@wxt-dev/storage';
 import { Config } from './model';
-import { defaultOption, previousDefaultSystemPrompt, previousDefaultUserPrompt, previousPhoneticUserPrompt, previousCompactUserPrompt, previousPhoneticSystemPrompt, servicesType } from './option';
+import { previousInlinePartOfSpeechUserPrompt } from './translationPrompt';
+import { defaultOption, previousDefaultSystemPrompt, previousDefaultUserPrompt, previousPhoneticUserPrompt, previousCompactUserPrompt, previousPhoneticSystemPrompt, previousDictionarySystemPrompt, previousDictionaryUserPrompt, servicesType } from './option';
 
 /** Merge supported settings only, so old backups cannot restore removed features. */
 export function normalizeConfig(value: unknown): Config {
@@ -31,8 +32,8 @@ export function normalizeConfig(value: unknown): Config {
     if (result.to === 'default') result.to = '';
     const previousUserPrompt = 'Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:\n\n{{origin}}';
     for (const service of Object.keys(result.user_role)) {
-        if ([previousUserPrompt, previousDefaultUserPrompt, previousPhoneticUserPrompt, previousCompactUserPrompt].includes(result.user_role[service])) result.user_role[service] = defaultOption.user_role;
-        if ([previousDefaultSystemPrompt, previousPhoneticSystemPrompt].includes(result.system_role[service])) result.system_role[service] = defaultOption.system_role;
+        if ([previousUserPrompt, previousDefaultUserPrompt, previousPhoneticUserPrompt, previousCompactUserPrompt, previousDictionaryUserPrompt, previousInlinePartOfSpeechUserPrompt].includes(result.user_role[service])) result.user_role[service] = defaultOption.user_role;
+        if ([previousDefaultSystemPrompt, previousPhoneticSystemPrompt, previousDictionarySystemPrompt].includes(result.system_role[service])) result.system_role[service] = defaultOption.system_role;
     }
     result.count = Number.isFinite(result.count) ? Math.max(0, Math.floor(result.count)) : 0;
     return result;

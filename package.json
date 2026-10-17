@@ -14,7 +14,8 @@
     "compile": "vue-tsc --noEmit",
     "postinstall": "wxt prepare",
     "test": "node tests/run.mjs",
-    "test:browser": "node tests/browser.mjs"
+    "test:browser": "node tests/browser.mjs",
+    "test:translation:live": "node tests/translation-live.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",

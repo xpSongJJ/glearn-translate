@@ -36,12 +36,15 @@ export function isChineseLanguage(language: string): boolean {
 export function resolveTargetLanguage(origin: string, targetLanguage: string): string {
     if (!isDefaultTargetLanguage(targetLanguage)) return targetLanguage;
 
-    const detectedLanguage = detectlang(origin.replace(/[\s\u3000]/g, ""));
-    return isChineseLanguage(detectedLanguage) ? "en" : "zh-Hans";
+    // Statistical detection is unreliable for single words/characters. Resolve
+    // the binary smart-mode direction using scripts, ignoring punctuation/space.
+    // Kana and Hangul distinguish Japanese/Korean text that also contains Han.
+    if (/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(origin)) return 'zh-Hans';
+    const han = origin.match(/\p{Script=Han}/gu)?.length || 0;
+    const letters = origin.match(/\p{L}/gu)?.length || 0;
+    return han > 0 && han * 2 >= letters ? 'en' : 'zh-Hans';
 }
 
 export function getPromptTargetLanguage(origin: string, targetLanguage: string): string {
-    if (!isDefaultTargetLanguage(targetLanguage)) return targetLanguage;
-
-    return '';
+    return resolveTargetLanguage(origin, targetLanguage);
 }

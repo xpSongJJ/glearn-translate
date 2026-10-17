@@ -215,8 +215,8 @@ async function translate() {
   loading.value = true; result.value = ''; error.value = '';
   try {
     await saveConfig();
-    const translated = await translateTextStream(translatedOrigin.value, '文本翻译', chunk => {
-      if (id === translationId) result.value += chunk;
+    const translated = await translateTextStream(translatedOrigin.value, '文本翻译', (chunk, reset) => {
+      if (id === translationId) result.value = reset ? '' : result.value + chunk;
     }, undefined, controller.signal);
     if (id === translationId) {
       result.value = translated;

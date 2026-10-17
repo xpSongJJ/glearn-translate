@@ -12,6 +12,7 @@ const requests = [];
 let failNext = false;
 let httpFailure;
 let nextResult;
+const queuedResults = [];
 const executable = process.env.GLEARN_TEST_BROWSER || [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', '/usr/bin/chromium', '/usr/bin/chromium-browser',
 ].find(existsSync);
@@ -28,7 +29,7 @@ const server = createServer(async (req, res) => {
     }
     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
     if (failNext) { failNext = false; res.end(`data: ${JSON.stringify({ error: { message: "Cannot read properties of undefined (reading 'sendMessage')" } })}\n\n`); return; }
-    const output = nextResult ?? expected; nextResult = undefined;
+    const output = queuedResults.length ? queuedResults.shift() : nextResult ?? expected; nextResult = undefined;
     res.end(`data: ${JSON.stringify({ choices: [{ delta: { content: output } }] })}\n\ndata: [DONE]\n\n`);
   } else if (req.url === '/v1/models') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -47,6 +48,7 @@ const browser = spawn(executable, [
   '--no-proxy-server', '--host-resolver-rules=MAP glearn.test 127.0.0.1', '--window-size=900,900', 'about:blank',
 ], { windowsHide: true, stdio: 'ignore' });
 let ws;
+let closeTestBrowser;
 try {
   let activePort;
   for (let i = 0; i < 100; i++) {
@@ -68,6 +70,7 @@ try {
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
     const callId = ++id; pending.set(callId, { resolve, reject }); ws.send(JSON.stringify({ id: callId, method, params, sessionId }));
   });
+  closeTestBrowser = () => send('Browser.close');
   const attach = async targetId => (await send('Target.attachToTarget', { targetId, flatten: true })).sessionId;
   const evaluate = async (sessionId, expression, userGesture = false) => {
     const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true, userGesture }, sessionId);
@@ -76,7 +79,7 @@ try {
   };
   const until = async (sessionId, expression) => {
     for (let i = 0; i < 80; i++) { if (await evaluate(sessionId, expression)) return; await pause(100); }
-    throw new Error('Timed out waiting for ' + expression + '\n' + await evaluate(sessionId, 'typeof document === "undefined" ? "worker" : document.body.innerText') + '\nrequests: ' + JSON.stringify(requests) + '\nerrors: ' + JSON.stringify(errors));
+    throw new Error('Timed out waiting for ' + expression + '\n' + await evaluate(sessionId, 'typeof document === "undefined" ? "worker" : document.body.innerText') + '\nrequest count: ' + requests.length + '\nlast requests: ' + JSON.stringify(requests.slice(-2)) + '\nerrors: ' + JSON.stringify(errors));
   };
   if (/[/\\]chrome(?:\.exe)?$/i.test(executable)) await send('Extensions.loadUnpacked', { path: resolve('.output/chrome-mv3') });
   let targets;
@@ -148,6 +151,8 @@ try {
   await until(reopened, 'document.activeElement?.id === "translation-text"');
   assert.equal(await evaluate(reopened, '!!document.querySelector(".input-shortcuts")'), false);
   await send('Target.closeTarget', { targetId: reopenedId });
+  await send('Page.bringToFront', {}, popup);
+  await until(popup, 'document.hasFocus()');
   assert.equal((await evaluate(popup, 'navigator.clipboard.readText()', true)).replaceAll('\r\n', '\n'), expected);
   console.log('✓ Popup: Enter translates, Ctrl+Enter inserts newline, IME does not translate, copy writes multiline text');
   await evaluate(popup, 'document.querySelector(".fr-close-btn").click()');
@@ -324,7 +329,8 @@ try {
   for (const source of ['这是一个中文句子。', 'This is an English sentence.', 'こんにちは、世界。']) {
     await fill(source); await key('keyDown'); await key('keyUp');
     await until(popup, 'document.querySelector(".fr-translation-result pre")?.textContent === ' + JSON.stringify(expected));
-    assert.ok(requests.at(-1).messages[1].content.includes('Target language is empty.'));
+    const target = source.startsWith('这是') ? 'en' : 'zh-Hans';
+    assert.ok(requests.at(-1).messages[1].content.includes(`Resolved target language: ${target}`));
     assert.ok(requests.at(-1).messages[1].content.includes(source));
   }
   for (const failure of [{ status: 401, message: 'Invalid API key', label: '检查密钥', selector: '.settings-fields input[type=password]' }, { status: 400, message: 'The model test-model does not exist', label: '更换模型', selector: '.model-controls input' }]) {
@@ -336,7 +342,7 @@ try {
     await evaluate(popup, 'document.querySelector(".status-right").click()');
     await until(popup, '!!document.querySelector("#translation-text")');
   }
-  console.log('✓ Intelligent mode sends empty target instructions; credential and model errors focus the relevant configuration');
+  console.log('✓ Intelligent mode sends a concrete target; credential and model errors focus the relevant configuration');
   httpFailure = { status: 401, message: 'Invalid API key' };
   await evaluate(page, `(() => { window.scrollTo(0, 0); document.querySelector('#sample').textContent = 'A different sentence to test opening settings.'; const selection = getSelection(); const range = document.createRange(); range.selectNodeContents(document.querySelector('#sample')); selection.removeAllRanges(); selection.addRange(range); document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); })()`);
   await until(page, '!!document.querySelector(".fr-selection-indicator")');
@@ -366,6 +372,42 @@ try {
   await send('Page.bringToFront', {}, popup);
   assert.equal((await evaluate(popup, 'navigator.clipboard.readText()', true)).replaceAll('\r\n', '\n'), 'cat /kæt/\nn. 猫');
   console.log('✓ Word and IPA remain on one line; the card displays and copies the AI response unchanged without a duplicate source');
+  for (const [source, output, target, formatted = output] of [
+    ['a', 'a /ə/\nart. 一（个）', 'zh-Hans'],
+    ['I', 'I /aɪ/\npron. 我', 'zh-Hans'],
+    [' \tinstant,\u3000', 'instant /ˈɪnstənt/\nadj. 立即的；n. 瞬间', 'zh-Hans', 'instant /ˈɪnstənt/\nadj. 立即的\nn. 瞬间'],
+    ['“schedule.”', 'schedule 英 /ˈʃedjuːl/ 美 /ˈskedʒuːl/\nn. 时间表；v. 安排', 'zh-Hans', 'schedule 英 /ˈʃedjuːl/ 美 /ˈskedʒuːl/\nn. 时间表\nv. 安排'],
+    ['service', 'service 英 /ˈsɜːvɪs/ 美 /ˈsɜːrvɪs/\nn. 服务；维修，保养；v. 维修，保养', 'zh-Hans', 'service 英 /ˈsɜːvɪs/ 美 /ˈsɜːrvɪs/\nn. 服务；维修，保养\nv. 维修，保养'],
+    ['\u00a0look forward to,\u00a0', '期待，盼望', 'zh-Hans'],
+    ['猫', 'cat /kæt/\nn. 猫', 'en'],
+    ['“猫。”', 'cat /kæt/\nn. 猫', 'en'],
+  ]) {
+    nextResult = output;
+    const requestCount = requests.length;
+    await evaluate(page, `(() => { document.querySelector('[aria-label="关闭翻译"]').click(); document.querySelector('#sample').textContent = ${JSON.stringify(source)}; const selection = getSelection(); const range = document.createRange(); range.selectNodeContents(document.querySelector('#sample')); selection.removeAllRanges(); selection.addRange(range); document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); })()`);
+    await until(page, '!!document.querySelector(".fr-selection-indicator")');
+    await evaluate(page, 'document.querySelector(".fr-selection-indicator").click()');
+    await until(page, 'document.querySelector(".fr-translation-result pre")?.textContent === ' + JSON.stringify(formatted));
+    assert.equal(requests.length, requestCount + 1);
+    const prompt = requests.at(-1).messages[1].content;
+    assert.ok(prompt.includes(`Resolved target language: ${target}`));
+    assert.equal(JSON.parse(prompt.split('contents):\n').at(-1)), source.trim());
+  }
+  console.log('✓ Single-character, whitespace, punctuation and quotation selections reach the API with the correct target; 英/美 layout is preserved (mock API)');
+  queuedResults.push('A retry sentence.', '纠正后的中文译文。');
+  const beforeSelectionRetry = requests.length;
+  await evaluate(page, `(() => { document.querySelector('[aria-label="关闭翻译"]').click(); document.querySelector('#sample').textContent = 'A retry sentence.'; const selection = getSelection(); const range = document.createRange(); range.selectNodeContents(document.querySelector('#sample')); selection.removeAllRanges(); selection.addRange(range); document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); })()`);
+  await until(page, '!!document.querySelector(".fr-selection-indicator")');
+  await evaluate(page, 'document.querySelector(".fr-selection-indicator").click()');
+  await until(page, 'document.querySelector(".fr-translation-result pre")?.textContent === "纠正后的中文译文。"');
+  assert.equal(requests.length, beforeSelectionRetry + 2);
+  assert.equal(requests.at(-1).messages.at(-2).content, 'A retry sentence.');
+  queuedResults.push('Popup retry sentence.', '面板纠正后的中文译文。');
+  const beforePopupRetry = requests.length;
+  await fill('Popup retry sentence.'); await key('keyDown'); await key('keyUp');
+  await until(popup, 'document.querySelector(".fr-translation-result pre")?.textContent === "面板纠正后的中文译文。"');
+  assert.equal(requests.length, beforePopupRetry + 2);
+  console.log('✓ Selection and popup both replace an incorrect English response with the corrected Chinese response after one retry');
   await evaluate(popup, 'document.querySelector(".status-right").click()');
   await until(popup, '!!document.querySelector(".address-controls input")');
   assert.equal(await evaluate(popup, '/代理接口|New API 地址|Azure 部署端点/.test(document.body.innerText)'), false);
@@ -383,6 +425,9 @@ try {
   assert.deepEqual(errors, []);
   console.log('✓ No uncaught browser errors');
 } finally {
+  if (ws?.readyState === WebSocket.OPEN && closeTestBrowser) {
+    try { await Promise.race([closeTestBrowser(), pause(1000)]); } catch {}
+  }
   ws?.close(); browser.kill(); server.closeAllConnections(); server.close();
   assert.ok(resolve(profile).startsWith(join(tmpdir(), 'glearn-browser-')));
   for (let i = 0; i < 20; i++) { try { await rm(profile, { recursive: true, force: true }); break; } catch { await pause(100); } }

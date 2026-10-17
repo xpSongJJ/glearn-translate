@@ -32,7 +32,7 @@ export interface StreamTiming {
 export async function translateTextStream(
   origin: string,
   context: string = document.title,
-  onChunk: (chunk: string) => void,
+  onChunk: (chunk: string, reset?: boolean) => void,
   timing?: StreamTiming,
   signal?: AbortSignal
 ): Promise<string> {
@@ -109,6 +109,12 @@ export async function translateTextStream(
       // 推理模型的思考内容：仅记录首思考时间，不传给 onChunk
       if (msg.reasoning) {
         if (timing && timing.firstReasoning === 0) timing.firstReasoning = performance.now();
+        return;
+      }
+
+      if (msg.reset) {
+        fullText = '';
+        onChunk('', true);
         return;
       }
 

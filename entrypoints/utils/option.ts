@@ -1,3 +1,6 @@
+import { translationSystemPrompt, translationUserPrompt } from './translationPrompt';
+export { previousInlinePartOfSpeechUserPrompt } from './translationPrompt';
+
 export const services = {
     // AI 翻译
     openai: "openai",
@@ -226,7 +229,7 @@ Single-word exception: if the entire source is a single English word (ignoring s
 
 {{origin}}`);
 
-export const defaultOption = {
+const previousDictionaryOption = {
     on: true,
     from: "auto",
     to: "",
@@ -244,5 +247,14 @@ Final check before responding: if the output is a single-word English translatio
 {{origin}}`),
     count: 0,
     useCache: true,
+};
+
+export const previousDictionarySystemPrompt = previousDictionaryOption.system_role;
+export const previousDictionaryUserPrompt = previousDictionaryOption.user_role;
+
+export const defaultOption = {
+    ...previousDictionaryOption,
+    system_role: translationSystemPrompt,
+    user_role: translationUserPrompt,
 };
 
